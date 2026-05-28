@@ -1,11 +1,12 @@
 import { getCollection } from 'astro:content'
 import type { APIRoute } from 'astro'
+import { isVisiblePost } from '@lib/posts'
 
 export const prerender = true
 
 export const GET: APIRoute = async () => {
   const posts = (await getCollection('posts'))
-    .filter((post) => !post.data.draft)
+    .filter((post) => isVisiblePost(post))
     .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
 
   const thoughts = (await getCollection('thoughts'))

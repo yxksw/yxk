@@ -1,69 +1,44 @@
 ---
-import { type CollectionEntry, getCollection, render } from "astro:content";
-import Comments from "@components/Comments.astro";
-import Container from "@components/Container.astro";
-import FormattedDate from "@components/FormattedDate.astro";
-import TableOfContents from "@components/TableOfContents.astro";
-import { SITE } from "@consts";
-import PageLayout from "@layouts/PageLayout.astro";
-import { formatYMD, readingTime } from "@lib/utils";
+import { type CollectionEntry, getCollection, render } from 'astro:content'
+import Comments from '@components/Comments.astro'
+import Container from '@components/Container.astro'
+import FormattedDate from '@components/FormattedDate.astro'
+import TableOfContents from '@components/TableOfContents.astro'
+import PageLayout from '@layouts/PageLayout.astro'
+import { isVisiblePost, showDraftPosts } from '@lib/posts'
+import { readingTime, wordCount } from '@lib/utils'
 
 export async function getStaticPaths() {
-	const allPosts = (await getCollection("posts"))
-		.filter((post: CollectionEntry<"posts">) => !post.data.draft)
-		.sort(
-			(a: CollectionEntry<"posts">, b: CollectionEntry<"posts">) =>
-				b.data.date.valueOf() - a.data.date.valueOf(),
-		);
-	return allPosts.map((post: CollectionEntry<"posts">) => ({
-		params: { slug: post.data.slug || post.id },
-		props: post,
-	}));
-}
-type Props = CollectionEntry<"posts">;
-
-const post = Astro.props;
-const { Content } = await render(post);
-const postPath = post.data.slug || post.id;
-const postBody = post.body ?? "";
-
-// 计算字数
-function countWords(text: string): number {
-	// 移除 HTML 标签
-	const plainText = text.replace(/<[^>]+>/g, "");
-	// 计算中文字符
-	const chineseChars = (plainText.match(/[\u4e00-\u9fa5]/g) || []).length;
-	// 计算英文单词
-	const englishWords = (
-		plainText.replace(/[\u4e00-\u9fa5]/g, " ").match(/[a-zA-Z]+/g) || []
-	).length;
-	return chineseChars + englishWords;
+  const allPosts = (await getCollection('posts'))
+    .filter((post: CollectionEntry<'posts'>) => isVisiblePost(post))
+    .sort(
+      (a: CollectionEntry<'posts'>, b: CollectionEntry<'posts'>) =>
+        b.data.date.valueOf() - a.data.date.valueOf(),
+    )
+  return allPosts.map((post: CollectionEntry<'posts'>) => ({
+    params: { slug: post.data.slug || post.id },
+    props: post,
+  }))
 }
 
-const wordCount = countWords(postBody);
+type Props = CollectionEntry<'posts'>
 
-// 获取所有文章并排除当前文章
-const allPosts = (await getCollection("posts")).filter(
-	(p: CollectionEntry<"posts">) => !p.data.draft && p.id !== post.id,
-);
-
-// 随机打乱并取 n 篇
-function shuffleArray<T>(array: T[]): T[] {
-	const shuffled = [...array];
-	for (let i = shuffled.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-	}
-	return shuffled;
-}
-
-const relatedPosts = shuffleArray(allPosts).slice(
-	0,
-	SITE.NUM_RELATED_POSTS_ON_POST,
-);
-
-// 获取当前文章的 URL
-const articleUrl = Astro.url.href;
+const post = Astro.props
+const { Content } = await render(post)
+const postPath = post.data.slug || post.id
+const postBody = post.body ?? ''
+const tags = post.data.tags ?? []
+const postReactions = [
+  { id: 'like', icon: '♡', activeIcon: '♥', label: '喜欢', effect: 'like' },
+  { id: 'star', icon: '☆', activeIcon: '★', label: '记住', effect: 'star' },
+  {
+    id: 'firework',
+    icon: '✺',
+    activeIcon: '✹',
+    label: '烟花',
+    effect: 'firework',
+  },
+]
 ---
 
 <PageLayout
@@ -71,272 +46,297 @@ const articleUrl = Astro.url.href;
   description={post.data.description || post.data.title}
   image={post.data.cover}
 >
-  <TableOfContents />
-  <Container>
-    <div class="mb-10 space-y-3">
-      {post.data.cover && (
-        <div class="post-cover animate mb-8 overflow-hidden rounded-xl">
-          <img
-            src={post.data.cover}
-            alt={post.data.title}
-            class="h-auto w-full object-cover"
-            loading="eager"
-            decoding="async"
-          />
-        </div>
-      )}
-      <h1
-        class="animate text-2xl leading-tight font-bold text-stone-900 sm:text-3xl lg:text-4xl dark:text-stone-100"
-      >
-        {post.data.title}
-      </h1>
-      <div
-        class="animate my-4 flex flex-wrap items-center gap-2 text-sm text-stone-500 dark:text-stone-400"
-      >
-        <span class="font-mono">
-          <FormattedDate date={post.data.date} />
-        </span>
-        <span class="text-stone-300 dark:text-stone-600">·</span>
-        <span>
-          {readingTime(postBody)}
-        </span>
-        <div class="hidden sm:inline">
-          <span class="text-stone-300 dark:text-stone-600">·</span>
-          <span>
-            {wordCount.toLocaleString()} 字
+  <Container class="!max-w-none">
+    <div class="relative">
+      <div class="mx-auto max-w-[680px] min-w-0">
+        {
+          post.data.cover && (
+            <div class="post-cover cover-frame mb-8">
+              <img
+                src={post.data.cover}
+                alt={post.data.title}
+                class="cover-image h-auto"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
+          )
+        }
+
+        <header class="mb-10">
+          <h1
+            class="max-w-3xl text-3xl leading-tight font-semibold text-stone-950 sm:text-4xl dark:text-stone-50"
+          >
+            {post.data.title}
+            {
+              showDraftPosts && post.data.draft && (
+                <span class="ml-3 inline-flex rounded-md border border-rose-200 bg-rose-50 px-2 py-1 align-middle text-xs font-medium text-rose-500 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
+                  草稿
+                </span>
+              )
+            }
+          </h1>
+          <div
+            class="mt-5 flex flex-wrap items-center gap-2 text-sm text-stone-500 dark:text-stone-400"
+          >
+            <span class="inline-flex items-center gap-1.5 font-mono">
+              <svg
+                class="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                ><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"
+                ></path></svg
+              >
+              <FormattedDate date={post.data.date} />
+            </span>
+            <span class="text-stone-300 dark:text-stone-700">·</span>
+            <span>{readingTime(postBody)}</span>
+            <span class="text-stone-300 dark:text-stone-700">·</span>
+            <span>{wordCount(postBody).toLocaleString()} 字</span>
+            {tags.map((tag) => <span class="chip ml-1">{tag}</span>)}
+          </div>
+        </header>
+
+        <article class="post-content">
+          <Content />
+        </article>
+
+        <div class="my-12 flex items-center gap-4">
+          <div
+            class="h-px flex-1 bg-gradient-to-r from-transparent to-[var(--line-strong)]"
+          >
+          </div>
+          <span class="shrink-0 text-sm text-stone-400 dark:text-stone-500">
+            End
           </span>
+          <div
+            class="h-px flex-1 bg-gradient-to-l from-transparent to-[var(--line-strong)]"
+          >
+          </div>
         </div>
-      </div>
-    </div>
 
-    <article class="animate post-content">
-      <Content />
-    </article>
-
-    <!-- End 分隔线 -->
-    <div class="relative my-10 flex items-center justify-center">
-      <div
-        class="absolute h-px w-full bg-gradient-to-r from-transparent via-stone-200 to-transparent dark:via-stone-700"
-      >
-      </div>
-      <span
-        class="relative flex items-center gap-2 bg-stone-50 px-4 text-sm text-stone-400 dark:bg-stone-950 dark:text-stone-500"
-      >
-        <span>End</span>
-      </span>
-    </div>
-
-    <!-- 分享按钮 -->
-    <div class="animate mb-8 flex flex-wrap items-center gap-3">
-      <span class="text-sm text-stone-500 dark:text-stone-400">分享：</span>
-      <button
-        id="copy-link-btn"
-        class="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700"
-        data-url={articleUrl}
-        title="复制链接"
-      >
-        <svg
-          class="h-3.5 w-3.5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+        <section
+          class="post-reactions"
+          data-post-reactions
+          data-post-key={postPath}
+          aria-label="读完反应"
         >
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
-          ></path>
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
-          ></path>
-        </svg>
-        <span id="copy-link-text">复制链接</span>
-      </button>
-      <a
-        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.data.title)}&url=${encodeURIComponent(articleUrl)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700"
-        title="分享到 X"
-      >
-        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-          <path
-            d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-          ></path>
-        </svg>
-        X
-      </a>
-    </div>
-
-    {
-      relatedPosts.length > 0 && (
-        <div class="animate mb-10">
-          <h3 class="mb-4 text-sm font-semibold text-stone-700 dark:text-stone-300">
-            也可以看看
-          </h3>
-
-          <ul class="space-y-1">
-            {relatedPosts.map((relatedPost) => (
-              <li>
-                <a
-                  href={`/${relatedPost.data.slug || relatedPost.id}`}
-                  class="group flex items-center justify-between gap-4 py-2 transition-colors duration-200"
+          <p class="post-reactions-label">读完了，轻轻留个反应</p>
+          <div class="post-reactions-actions">
+            {
+              postReactions.map((reaction) => (
+                <button
+                  type="button"
+                  class="post-reaction-button"
+                  data-reaction={reaction.id}
+                  data-effect={reaction.effect}
+                  aria-label={reaction.label}
+                  aria-pressed="false"
+                  title={reaction.label}
                 >
-                  <span class="text-sm text-stone-500 transition-colors duration-200 group-hover:text-stone-800 dark:text-stone-400 dark:group-hover:text-stone-200">
-                    {relatedPost.data.title}
+                  <span
+                    class="post-reaction-icon post-reaction-icon--idle"
+                    aria-hidden="true"
+                  >
+                    {reaction.icon}
                   </span>
-                  <span class="shrink-0 font-mono text-xs text-stone-400 dark:text-stone-500">
-                    {formatYMD(relatedPost.data.date)}
+                  <span
+                    class="post-reaction-icon post-reaction-icon--active"
+                    aria-hidden="true"
+                  >
+                    {reaction.activeIcon}
                   </span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )
-    }
+                </button>
+              ))
+            }
+          </div>
+        </section>
 
-    <!-- 评论区 -->
-    <div class="animate mt-10 mb-8 border-t border-stone-200 pt-8 dark:border-stone-800">
-      <h3 class="mb-6 text-base font-semibold text-stone-900 dark:text-stone-100">评论</h3>
-      <Comments slug={postPath} title={post.data.title} />
+        <section class="mt-2 border-t border-[var(--line)] pt-10 sm:mt-4">
+          <h2
+            class="mb-6 text-base font-semibold text-stone-900 dark:text-stone-100"
+          >
+            评论
+          </h2>
+          <Comments slug={postPath} title={post.data.title} />
+        </section>
+      </div>
+
+      <aside
+        class="xl:fixed xl:top-24 xl:right-[max(1rem,calc((100vw-680px)/2-340px))] xl:z-30 xl:w-64"
+      >
+        <div class="pointer-events-auto">
+          <TableOfContents />
+        </div>
+      </aside>
     </div>
   </Container>
+</PageLayout>
 
-  <script>
-    import { timeAgo } from '@lib/utils'
-
-    function updateTimeAgo() {
-      document.querySelectorAll('.time-ago').forEach((el) => {
-        const timestamp = el.getAttribute('data-timestamp')
-        if (timestamp) {
-          const date = new Date(parseInt(timestamp))
-          el.textContent = timeAgo(date)
-        }
-      })
+<script>
+  function showCopyToast(message: string) {
+    let toast = document.getElementById('copy-toast')
+    if (!toast) {
+      toast = document.createElement('div')
+      toast.id = 'copy-toast'
+      toast.className =
+        'fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-stone-900/90 px-4 py-2 text-sm text-white opacity-0 shadow-lg transition-opacity duration-300 pointer-events-none dark:bg-stone-100 dark:text-stone-900 sm:bottom-8'
+      document.body.appendChild(toast)
     }
 
-    // 为标题锚点添加点击复制链接功能
-    function setupHeadingAnchors() {
-      const article = document.querySelector('article.post-content')
-      if (!article) return
+    toast.textContent = `✓ ${message}`
+    toast.classList.remove('opacity-0')
+    toast.classList.add('opacity-100')
+    setTimeout(() => {
+      toast?.classList.remove('opacity-100')
+      toast?.classList.add('opacity-0')
+    }, 1800)
+  }
 
-      const anchors = article.querySelectorAll('.heading-anchor')
-      anchors.forEach((anchor) => {
-        anchor.addEventListener('click', async (e) => {
-          e.preventDefault()
-          const href = anchor.getAttribute('href')
+  function setupArticleActions() {
+    document
+      .querySelectorAll('article.post-content .heading-anchor')
+      .forEach((anchor) => {
+        const el = anchor as HTMLAnchorElement
+        if (el.dataset.anchorBound === 'true') return
+        el.dataset.anchorBound = 'true'
+        el.addEventListener('click', async (event) => {
+          event.preventDefault()
+          const href = el.getAttribute('href')
           if (!href) return
-
           const url = `${window.location.origin}${window.location.pathname}${href}`
-
-          // 更新 URL hash
-          history.pushState(null, '', href)
-
-          // 滚动到对应标题
-          const targetId = href.slice(1)
-          const targetEl = document.getElementById(targetId)
-          if (targetEl) {
-            targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
-          }
-
           try {
             await navigator.clipboard.writeText(url)
-            // 显示复制成功提示
-            showCopyToast('链接已复制')
-          } catch (err) {
-            // 静默失败，滚动行为已完成
+            history.pushState(null, '', href)
+            showCopyToast('标题链接已复制')
+          } catch {
+            showCopyToast('复制失败')
           }
         })
       })
+  }
 
-      // 页面加载时如果 URL 带 hash，滚动到对应标题
-      const hash = window.location.hash
-      if (hash) {
-        const targetEl = document.getElementById(hash.slice(1))
-        if (targetEl) {
-          requestAnimationFrame(() => {
-            targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  function setupPostReactions() {
+    document.querySelectorAll('[data-post-reactions]').forEach((root) => {
+      const el = root as HTMLElement
+      if (el.dataset.reactionsBound === 'true') return
+      el.dataset.reactionsBound = 'true'
+
+      const postKey = el.dataset.postKey || window.location.pathname
+      const storageKey = `post-reactions:${postKey}`
+      const buttons = Array.from(
+        el.querySelectorAll<HTMLButtonElement>('[data-reaction]'),
+      )
+
+      const readSaved = (): Set<string> => {
+        try {
+          const value = window.localStorage.getItem(storageKey)
+          const parsed = value ? JSON.parse(value) : []
+          return Array.isArray(parsed)
+            ? new Set<string>(
+                parsed.filter(
+                  (item): item is string => typeof item === 'string',
+                ),
+              )
+            : new Set<string>()
+        } catch {
+          return new Set<string>()
+        }
+      }
+
+      const writeSaved = (saved: Set<string>) => {
+        window.localStorage.setItem(storageKey, JSON.stringify([...saved]))
+      }
+
+      const syncButtons = (saved: Set<string>) => {
+        buttons.forEach((button) => {
+          const active = saved.has(button.dataset.reaction || '')
+          button.dataset.active = active ? 'true' : 'false'
+          button.setAttribute('aria-pressed', String(active))
+        })
+      }
+
+      const burst = (button: HTMLButtonElement) => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          return
+        }
+
+        const rect = button.getBoundingClientRect()
+        const effect = button.dataset.effect || 'star'
+        const configs = {
+          like: {
+            symbols: ['♡', '♥', '♡', '·'],
+            count: 8,
+            className: 'reaction-particle--like',
+          },
+          star: {
+            symbols: ['☆', '✦', '✧', '·'],
+            count: 9,
+            className: 'reaction-particle--star',
+          },
+          firework: {
+            symbols: ['✺', '✹', '✷', '✦', '·'],
+            count: 14,
+            className: 'reaction-particle--firework',
+          },
+        } as const
+        const config = configs[effect as keyof typeof configs] ?? configs.star
+
+        for (let i = 0; i < config.count; i += 1) {
+          const particle = document.createElement('span')
+          particle.className = `reaction-particle ${config.className}`
+          particle.textContent = config.symbols[i % config.symbols.length]
+          particle.style.left = `${rect.left + rect.width / 2}px`
+          particle.style.top = `${rect.top + rect.height / 2}px`
+          const angle = (Math.PI * 2 * i) / config.count
+          const spread = 36 + Math.random() * 42
+          const x =
+            effect === 'firework'
+              ? Math.cos(angle) * spread
+              : (Math.random() - 0.5) * (effect === 'like' ? 54 : 86)
+          const y =
+            effect === 'firework'
+              ? Math.sin(angle) * spread
+              : -30 - Math.random() * (effect === 'like' ? 38 : 54)
+          particle.style.setProperty('--x', `${x}px`)
+          particle.style.setProperty('--y', `${y}px`)
+          particle.style.setProperty(
+            '--rotate',
+            `${Math.random() * 160 - 80}deg`,
+          )
+          particle.style.setProperty('--delay', `${i * 18}ms`)
+          document.body.appendChild(particle)
+          particle.addEventListener('animationend', () => particle.remove(), {
+            once: true,
           })
         }
       }
-    }
 
-    // 显示复制成功 Toast
-    function showCopyToast(message: string) {
-      // 检查是否已有 toast
-      let toast = document.getElementById('copy-toast')
-      if (!toast) {
-        toast = document.createElement('div')
-        toast.id = 'copy-toast'
-        toast.className =
-          'fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg bg-stone-800/90 text-white text-sm shadow-lg dark:bg-stone-200 dark:text-stone-800 transition-all duration-300 opacity-0 pointer-events-none'
-        document.body.appendChild(toast)
-      }
+      const saved = readSaved()
+      syncButtons(saved)
 
-      toast.textContent = `✓ ${message}`
-      toast.classList.remove('opacity-0')
-      toast.classList.add('opacity-100')
-
-      setTimeout(() => {
-        toast.classList.remove('opacity-100')
-        toast.classList.add('opacity-0')
-      }, 2000)
-    }
-
-    function setupCopyLink() {
-      const copyBtn = document.getElementById('copy-link-btn')
-      const copyText = document.getElementById('copy-link-text')
-
-      if (copyBtn && copyText) {
-        copyBtn.addEventListener('click', async () => {
-          const url = copyBtn.getAttribute('data-url') || window.location.href
-          try {
-            await navigator.clipboard.writeText(url)
-            copyText.textContent = '已复制!'
-            setTimeout(() => {
-              copyText.textContent = '复制链接'
-            }, 2000)
-          } catch (err) {
-            console.error('复制失败:', err)
-          }
+      buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+          const reaction = button.dataset.reaction
+          if (!reaction) return
+          if (saved.has(reaction)) saved.delete(reaction)
+          else saved.add(reaction)
+          writeSaved(saved)
+          syncButtons(saved)
+          burst(button)
         })
-      }
-    }
+      })
+    })
+  }
 
-    function init() {
-      updateTimeAgo()
-      setupCopyLink()
-      setupHeadingAnchors()
-      // 每分钟更新一次时间
-      setInterval(updateTimeAgo, 60000)
-    }
-
-    document.addEventListener('DOMContentLoaded', init)
-    document.addEventListener('astro:after-swap', init)
-
-    if (document.readyState === 'complete') {
-      init()
-    }
-  </script>
-
-  <style is:global>
-    /* 文章页面样式 */
-    .post-content {
-      font-size: 0.9375rem;
-      line-height: 1.8;
-    }
-
-    @media (min-width: 640px) {
-      .post-content {
-        font-size: 1rem;
-        line-height: 1.85;
-      }
-    }
-
-    @media (min-width: 768px) {
-      .post-content {
-        font-size: 1.0625rem;
-      }
-    }
-  </style>
-</PageLayout>
+  document.addEventListener('DOMContentLoaded', setupArticleActions)
+  document.addEventListener('astro:after-swap', setupArticleActions)
+  document.addEventListener('DOMContentLoaded', setupPostReactions)
+  document.addEventListener('astro:after-swap', setupPostReactions)
+  if (document.readyState === 'complete') {
+    setupArticleActions()
+    setupPostReactions()
+  }
+</script>

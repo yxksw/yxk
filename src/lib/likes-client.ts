@@ -1,8 +1,18 @@
+/**
+ * 点赞客户端库
+ * - getLikes: 批量查询（50ms 合并窗口 + sessionStorage 缓存）
+ * - sendLike: 防抖批量写入（800ms 窗口，合并同一时间段内所有点赞操作为单次请求）
+ */
+
 import { getFingerprint } from './fingerprint'
 
 const API_BASE = '/api/likes'
 const LIKES_CACHE_KEY = 'blog_likes_cache'
-const CACHE_TTL = 2 * 60 * 1000
+const CACHE_TTL = 2 * 60 * 1000 // 2 分钟
+
+// ============================================================================
+// 类型
+// ============================================================================
 
 export interface LikeInfo {
   total: number
@@ -23,6 +33,10 @@ interface CacheEntry {
   data: Record<string, LikeInfo>
   ts: number
 }
+
+// ============================================================================
+// sessionStorage 缓存
+// ============================================================================
 
 function getCachedLikes(): CacheEntry | null {
   try {
@@ -48,7 +62,7 @@ function setCachedLikes(newData: Record<string, LikeInfo>): void {
       JSON.stringify({ data: merged, ts: Date.now() }),
     )
   } catch {
-    // ignore
+    // sessionStorage 不可用，忽略
   }
 }
 
@@ -60,15 +74,19 @@ function updateCacheEntry(key: string, info: Partial<LikeInfo>): void {
       sessionStorage.setItem(LIKES_CACHE_KEY, JSON.stringify(existing))
     }
   } catch {
-    // ignore
+    // 忽略
   }
 }
 
+// ============================================================================
+// getLikes：批量查询，50ms 合并窗口
+// ============================================================================
+
 let pendingGetIds: string[] = []
-let pendingGetType = ''
+let pendingGetType: string = ''
 let pendingGetResolvers: Array<{
-  resolve: (value: Record<string, LikeInfo>) => void
-  reject: (error: unknown) => void
+  resolve: (v: Record<string, LikeInfo>) => void
+  reject: (e: unknown) => void
 }> = []
 let getTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -79,8 +97,7 @@ async function fetchLikesFromAPI(
   const fingerprint = await getFingerprint()
   const params = new URLSearchParams({ ids: ids.join(','), type, fingerprint })
   const response = await fetch(`${API_BASE}?${params}`)
-  if (response.status === 404 || response.status === 405) return {}
-  if (!response.ok) return {}
+  if (!response.ok) throw new Error(`fetch likes failed: ${response.status}`)
   const data = await response.json()
   return data.likes || {}
 }
@@ -100,10 +117,10 @@ function flushGetBatch(): void {
   fetchLikesFromAPI(ids, type)
     .then((result) => {
       setCachedLikes(result)
-      for (const resolver of resolvers) resolver.resolve(result)
+      for (const r of resolvers) r.resolve(result)
     })
-    .catch((error) => {
-      for (const resolver of resolvers) resolver.reject(error)
+    .catch((err) => {
+      for (const r of resolvers) r.reject(err)
     })
 }
 
@@ -111,6 +128,7 @@ export function getLikes(
   ids: string[],
   type: 'thought',
 ): Promise<Record<string, LikeInfo>> {
+  // 先尝试全量命中缓存
   const cached = getCachedLikes()
   const prefixedIds = ids.map((id) => `${type}:${id}`)
   if (cached && prefixedIds.every((id) => id in cached.data)) {
@@ -119,106 +137,110 @@ export function getLikes(
     return Promise.resolve(result)
   }
 
+  // 加入 50ms 合并窗口
   return new Promise((resolve, reject) => {
     pendingGetIds.push(...ids)
     pendingGetType = type
     pendingGetResolvers.push({ resolve, reject })
     if (getTimer) clearTimeout(getTimer)
     getTimer = setTimeout(flushGetBatch, 50)
-  })
+  }) as Promise<Record<string, LikeInfo>>
 }
+
+// ============================================================================
+// sendLike：防抖批量写入，800ms 合并窗口
+//
+// 用户在 800ms 内点赞的所有条目会被打包成一个 batch POST 发送，
+// 服务端的写缓冲再次合并，最终一次 GitHub PATCH 搞定所有操作。
+// ============================================================================
 
 interface PendingLikeOp {
   targetId: string
   type: 'thought'
   resolve: (result: LikeResult) => void
-  reject: (error: unknown) => void
+  reject: (err: unknown) => void
 }
 
 let pendingLikeOps: PendingLikeOp[] = []
 let likeDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
+/** 将所有积压操作打包发送 */
 async function flushLikeBatch(): Promise<void> {
   if (pendingLikeOps.length === 0) return
 
-  const operations = [...pendingLikeOps]
+  const ops = [...pendingLikeOps]
   pendingLikeOps = []
   likeDebounceTimer = null
 
   const fingerprint = await getFingerprint()
 
-  if (operations.length === 1) {
-    const operation = operations[0]
+  // 单个操作走简单路径
+  if (ops.length === 1) {
+    const op = ops[0]
     try {
       const response = await fetch(API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          targetId: operation.targetId,
-          type: operation.type,
+          targetId: op.targetId,
+          type: op.type,
           fingerprint,
         }),
       })
       if (!response.ok) {
-        if (response.status === 404 || response.status === 405) {
-          operation.reject(new Error('点赞功能未启用'))
-          return
-        }
-        operation.reject(
+        op.reject(
           response.status === 429
             ? new Error('请求太频繁，请稍后再试')
-            : response.status === 500 || response.status === 503
-              ? new Error('点赞接口尚未配置完成')
-              : new Error('点赞失败'),
+            : new Error('点赞失败'),
         )
         return
       }
       const data: LikeResult = await response.json()
-      updateCacheEntry(`${operation.type}:${operation.targetId}`, {
+      updateCacheEntry(`${op.type}:${op.targetId}`, {
         total: data.total,
         userToday: data.userToday,
       })
-      operation.resolve(data)
-    } catch (error) {
-      operation.reject(error)
+      op.resolve(data)
+    } catch (err) {
+      op.reject(err)
     }
     return
   }
 
+  // 多个操作 → 批量请求
   try {
     const response = await fetch(API_BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        operations: operations.map((operation) => ({
-          targetId: operation.targetId,
-          type: operation.type,
+        operations: ops.map((op) => ({
+          targetId: op.targetId,
+          type: op.type,
         })),
         fingerprint,
       }),
     })
 
     if (!response.ok) {
-      const error =
-        response.status === 404 || response.status === 405
-          ? new Error('点赞功能未启用')
-          : response.status === 429
-            ? new Error('请求太频繁，请稍后再试')
-            : response.status === 500 || response.status === 503
-              ? new Error('点赞接口尚未配置完成')
-              : new Error('点赞失败')
-      for (const operation of operations) operation.reject(error)
+      const err =
+        response.status === 429
+          ? new Error('请求太频繁，请稍后再试')
+          : new Error('点赞失败')
+      for (const op of ops) op.reject(err)
       return
     }
 
     const data = await response.json()
+
     if (!data.batch || !data.results) {
-      const error = new Error('Unexpected response format')
-      for (const operation of operations) operation.reject(error)
+      const err = new Error('Unexpected response format')
+      for (const op of ops) op.reject(err)
       return
     }
 
     const results: Record<string, LikeResult> = data.results
+
+    // 更新缓存
     for (const [key, result] of Object.entries(results)) {
       updateCacheEntry(key, {
         total: result.total,
@@ -226,13 +248,15 @@ async function flushLikeBatch(): Promise<void> {
       })
     }
 
-    for (const operation of operations) {
-      const key = `${operation.type}:${operation.targetId}`
+    // 将结果分发给每个 op
+    for (const op of ops) {
+      const key = `${op.type}:${op.targetId}`
       const result = results[key]
       if (result) {
-        operation.resolve(result)
+        op.resolve(result)
       } else {
-        operation.resolve({
+        // 该条目未出现在结果中（被过滤或超出日上限），当作 daily_cap 处理
+        op.resolve({
           success: false,
           limited: true,
           limitReason: 'daily_cap',
@@ -243,11 +267,17 @@ async function flushLikeBatch(): Promise<void> {
         })
       }
     }
-  } catch (error) {
-    for (const operation of operations) operation.reject(error)
+  } catch (err) {
+    for (const op of ops) op.reject(err)
   }
 }
 
+/**
+ * 发送点赞请求（防抖批量版）
+ *
+ * 调用后不会立即发请求，而是将操作放入队列，
+ * 在 800ms 内无新操作时才统一发送批量请求。
+ */
 export function sendLike(
   targetId: string,
   type: 'thought',
@@ -258,12 +288,15 @@ export function sendLike(
     if (likeDebounceTimer) clearTimeout(likeDebounceTimer)
     likeDebounceTimer = setTimeout(() => {
       flushLikeBatch().catch(() => {
-        // avoid unhandled rejection
+        // 内部已 reject 所有 op，此处仅防止 unhandled rejection
       })
     }, 800)
   })
 }
 
+/**
+ * 格式化点赞数显示
+ */
 export function formatLikeCount(count: number): string {
   if (count === 0) return ''
   if (count < 1000) return `${count}`

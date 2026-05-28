@@ -255,3 +255,73 @@ Content-Type: application/json
 - `data.github.fileUrl`
 
 如果这些字段缺失，成功提示里的链接区域会无法正常显示。
+
+## `POST /api/add-album`
+
+用途：供 `/moments/new` 页面在线创建一条相册内容。
+
+请求头：
+
+```text
+Authorization: Bearer <THOUGHT_API_TOKEN>
+Content-Type: application/json
+```
+
+请求体示例：
+
+```json
+{
+  "title": "一张照片",
+  "date": "2026-04-23",
+  "src": "https://cdn.example.com/albums/photo.webp",
+  "thumb": "https://cdn.example.com/albums/photo-thumb.webp",
+  "alt": "照片描述",
+  "description": "可选说明",
+  "location": "Zhengzhou",
+  "width": 1600,
+  "height": 1200
+}
+```
+
+成功响应示例：
+
+```json
+{
+  "success": true,
+  "message": "照片创建成功！",
+  "data": {
+    "filename": "23_photo.md",
+    "filePath": "src/content/albums/2026/04/23_photo.md",
+    "local": true,
+    "github": {
+      "commitUrl": "https://github.com/owner/repo/commit/xxx",
+      "fileUrl": "https://github.com/owner/repo/blob/main/src/content/albums/2026/04/23_photo.md"
+    }
+  }
+}
+```
+
+## `POST /api/upload-sign` 与 `POST /api/upload-complete`
+
+用途：给 `/moments/new` 的浏览器图片上传提供签名和完成确认。模板只代理请求，实际上传签名服务由 `R2_IMAGE_BASE_URL` 指向你自己的服务。
+
+`/api/upload-sign` 请求体示例：
+
+```json
+{
+  "filename": "photo.jpg",
+  "contentType": "image/jpeg",
+  "folder": "albums",
+  "objectId": "a1b2c3",
+  "size": 123456,
+  "variant": "thumb"
+}
+```
+
+`/api/upload-complete` 请求体示例：
+
+```json
+{
+  "key": "albums/a1b2c3.webp"
+}
+```

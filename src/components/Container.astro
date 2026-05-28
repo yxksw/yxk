@@ -2,6 +2,8 @@
 const { class: customClass } = Astro.props
 ---
 
-<div class={`mx-auto max-w-3xl px-5 ${customClass || 'sm:px-8'}`}>
+<div
+  class={`mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 ${customClass || ''}`}
+>
   <slot />
 </div>

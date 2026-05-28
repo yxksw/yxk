@@ -1,118 +1,174 @@
 ---
-export const prerender = true
+export const prerender = false
 
+import PageLayout from '@layouts/PageLayout.astro'
 import Container from '@components/Container.astro'
 import { THOUGHTS } from '@consts'
-import PageLayout from '@layouts/PageLayout.astro'
 ---
 
 <PageLayout title={`发布 ${THOUGHTS.TITLE}`} description="发布新的碎碎念">
-  <Container>
-    <div class="space-y-8">
-      <div class="animate">
+  <Container class="!max-w-3xl">
+    <div id="thought-composer" class="space-y-8">
+      <section class="py-4">
         <h1
-          class="mb-2 text-3xl font-semibold text-stone-900 dark:text-stone-100"
+          class="text-3xl font-semibold text-stone-950 sm:text-4xl dark:text-stone-50"
         >
-          发布碎碎念
+          写一条碎碎念
         </h1>
-        <p class="text-stone-600 dark:text-stone-400">
-          记录此刻的想法，支持 Markdown 格式
-        </p>
-      </div>
-
-      <div
-        class="animate rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600 dark:border-stone-700 dark:bg-stone-900/50 dark:text-stone-300"
-      >
-        这是一个可选增强页。模板已经自带 <code>/api/add-thought</code>，推荐按
-        <code>docs/deploy-vercel.md</code> 部署到 Vercel 并配置 Token；如果你只想纯静态写作，继续使用本地命令
-        <code>bun t</code> 即可。
-      </div>
-
-      <!-- 认证区域 -->
-      <div id="auth-section" class="animate">
-        <label
-          class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+        <p
+          class="mt-3 max-w-2xl leading-relaxed text-stone-600 dark:text-stone-400"
         >
-          API Token
-        </label>
-        <div class="flex gap-2">
-          <input
-            type="password"
-            id="api-token"
-            placeholder="输入你的 API Token"
-            class="flex-1 rounded-lg border border-stone-300 bg-white px-4 py-2 text-stone-900 placeholder-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20 focus:outline-none dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:placeholder-stone-500"
-          />
-          <button
-            id="save-token-btn"
-            class="rounded-lg bg-stone-200 px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-300 dark:bg-stone-700 dark:text-stone-300 dark:hover:bg-stone-600"
-          >
-            保存
-          </button>
-        </div>
-        <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
-          Token 将保存在本地，不会上传到服务器
+          捕捉此刻的想法。内容支持 Markdown，发布后会自动提交到仓库并等待部署。
         </p>
-      </div>
+      </section>
 
-      <!-- 编辑器区域 -->
-      <div class="animate grid gap-6 lg:grid-cols-2">
-        <!-- 输入区 -->
-        <div class="space-y-4">
+      <section
+        id="auth-section"
+        class="animate rounded-xl border border-stone-200/70 bg-white/35 p-4 dark:border-stone-800 dark:bg-stone-900/35"
+      >
+        <div class="min-w-0">
           <div>
             <label
-              class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+              for="api-token"
+              class="block text-sm font-medium text-stone-800 dark:text-stone-200"
             >
-              内容 <span class="text-rose-500">*</span>
+              本地凭证
             </label>
-            <textarea
-              id="content"
-              rows="8"
-              placeholder="写下你此刻的想法..."
-              class="w-full resize-none rounded-lg border border-stone-300 bg-white px-4 py-3 text-stone-900 placeholder-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20 focus:outline-none dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:placeholder-stone-500"
-            ></textarea>
-            <div
-              class="mt-1 flex justify-between text-xs text-stone-500 dark:text-stone-400"
-            >
-              <span>支持 Markdown 语法</span>
-              <span id="char-count">0 字</span>
+            <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="password"
+                id="api-token"
+                placeholder="输入 API Token"
+                class="min-w-0 flex-1 rounded-lg border border-stone-200/80 bg-white/65 px-3 py-2.5 text-stone-900 placeholder-stone-400 transition-colors focus:border-stone-400 focus:ring-2 focus:ring-stone-500/10 focus:outline-none dark:border-stone-800 dark:bg-stone-950/45 dark:text-stone-100 dark:placeholder-stone-500 dark:focus:border-stone-600"
+              />
+              <button
+                id="save-token-btn"
+                type="button"
+                class="inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-stone-200/80 bg-white/65 px-4 text-sm font-medium text-stone-700 transition-colors hover:bg-white hover:text-stone-950 dark:border-stone-800 dark:bg-stone-950/45 dark:text-stone-300 dark:hover:bg-stone-900 dark:hover:text-stone-50"
+              >
+                保存
+              </button>
             </div>
+            <p class="mt-2 text-xs text-stone-500 dark:text-stone-400">
+              Token 仅保存在当前浏览器本地，发布请求时才会使用。
+            </p>
           </div>
+        </div>
+        <p
+          id="token-feedback"
+          class="mt-3 hidden text-xs text-stone-500 dark:text-stone-400"
+        >
+          Token 已保存。
+        </p>
+      </section>
 
+      <section
+        id="thought-editor-section"
+        class="animate overflow-hidden rounded-xl border border-stone-200/70 bg-white/35 dark:border-stone-800 dark:bg-stone-900/35"
+      >
+        <div
+          class="flex flex-col gap-3 border-b border-stone-200/70 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-stone-800"
+        >
           <div>
-            <label
-              class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+            <h2 class="font-medium text-stone-950 dark:text-stone-50">正文</h2>
+            <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+              支持 Markdown、图片上传和简单格式。
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button
+              id="image-upload-btn"
+              type="button"
+              class="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-stone-200/80 bg-white/45 px-3 text-xs font-medium text-stone-600 transition-colors hover:bg-white hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-stone-800 dark:bg-stone-950/35 dark:text-stone-300 dark:hover:bg-stone-900 dark:hover:text-stone-50"
             >
-              标签
-            </label>
+              <svg
+                class="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <circle cx="9" cy="9" r="2"></circle>
+                <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path>
+              </svg>
+              <span id="image-upload-label">图片</span>
+            </button>
+            <input
+              id="image-upload-input"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+            />
+            <span id="char-count" class="font-mono text-xs text-stone-400">
+              0 字
+            </span>
+          </div>
+        </div>
+
+        <textarea
+          id="content"
+          rows="11"
+          placeholder="写下你此刻的想法..."
+          class="min-h-[260px] w-full resize-y border-0 bg-transparent px-4 py-4 text-[16px] leading-8 text-stone-900 outline-none placeholder:text-stone-400 dark:text-stone-100 dark:placeholder-stone-500"
+        ></textarea>
+        <p
+          id="image-upload-status"
+          class="hidden border-t border-stone-200/70 px-4 py-3 text-xs text-stone-500 dark:border-stone-800 dark:text-stone-400"
+        >
+        </p>
+      </section>
+
+      <section class="animate grid gap-6 lg:grid-cols-[1fr_280px]">
+        <div class="space-y-5">
+          <div>
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <label
+                class="text-sm font-medium text-stone-800 dark:text-stone-200"
+              >
+                标签
+              </label>
+              <span class="text-xs text-stone-400">默认日常</span>
+            </div>
             <div class="flex flex-wrap gap-2" id="tags-container">
               <button
                 type="button"
-                class="tag-btn rounded-full border border-stone-900 bg-stone-900 px-3 py-1 text-xs font-medium text-white transition-all dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
+                aria-pressed="true"
+                class="tag-btn rounded-md border border-stone-900 bg-stone-900 px-2.5 py-1.5 text-xs font-medium text-white transition-all dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900"
                 data-tag="日常">日常</button
               >
               <button
                 type="button"
-                class="tag-btn rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 transition-all hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-400 dark:hover:border-stone-500 dark:hover:bg-stone-700"
+                aria-pressed="false"
+                class="tag-btn rounded-md border border-stone-200/80 bg-white/35 px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-stone-300 hover:bg-white/70 hover:text-stone-800 dark:border-stone-800 dark:bg-stone-900/45 dark:text-stone-400 dark:hover:border-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                 data-tag="技术">技术</button
               >
               <button
                 type="button"
-                class="tag-btn rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 transition-all hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-400 dark:hover:border-stone-500 dark:hover:bg-stone-700"
+                aria-pressed="false"
+                class="tag-btn rounded-md border border-stone-200/80 bg-white/35 px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-stone-300 hover:bg-white/70 hover:text-stone-800 dark:border-stone-800 dark:bg-stone-900/45 dark:text-stone-400 dark:hover:border-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                 data-tag="心情">心情</button
               >
               <button
                 type="button"
-                class="tag-btn rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 transition-all hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-400 dark:hover:border-stone-500 dark:hover:bg-stone-700"
+                aria-pressed="false"
+                class="tag-btn rounded-md border border-stone-200/80 bg-white/35 px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-stone-300 hover:bg-white/70 hover:text-stone-800 dark:border-stone-800 dark:bg-stone-900/45 dark:text-stone-400 dark:hover:border-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                 data-tag="想法">想法</button
               >
               <button
                 type="button"
-                class="tag-btn rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 transition-all hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-400 dark:hover:border-stone-500 dark:hover:bg-stone-700"
+                aria-pressed="false"
+                class="tag-btn rounded-md border border-stone-200/80 bg-white/35 px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-stone-300 hover:bg-white/70 hover:text-stone-800 dark:border-stone-800 dark:bg-stone-900/45 dark:text-stone-400 dark:hover:border-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                 data-tag="音乐">音乐</button
               >
               <button
                 type="button"
-                class="tag-btn rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 transition-all hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-400 dark:hover:border-stone-500 dark:hover:bg-stone-700"
+                aria-pressed="false"
+                class="tag-btn rounded-md border border-stone-200/80 bg-white/35 px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-stone-300 hover:bg-white/70 hover:text-stone-800 dark:border-stone-800 dark:bg-stone-900/45 dark:text-stone-400 dark:hover:border-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-100"
                 data-tag="阅读">阅读</button
               >
             </div>
@@ -120,13 +176,14 @@ import PageLayout from '@layouts/PageLayout.astro'
               type="text"
               id="custom-tag"
               placeholder="自定义标签，按回车添加"
-              class="mt-2 w-full rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm text-stone-900 placeholder-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20 focus:outline-none dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:placeholder-stone-500"
+              class="mt-3 w-full rounded-lg border border-stone-200/80 bg-white/45 px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 transition-colors focus:border-stone-400 focus:ring-2 focus:ring-stone-500/10 focus:outline-none dark:border-stone-800 dark:bg-stone-950/35 dark:text-stone-100 dark:placeholder-stone-500 dark:focus:border-stone-600"
             />
           </div>
 
           <div>
             <label
-              class="mb-2 block text-sm font-medium text-stone-700 dark:text-stone-300"
+              for="name"
+              class="mb-2 block text-sm font-medium text-stone-800 dark:text-stone-200"
             >
               文件名标识 <span class="text-stone-400">(可选)</span>
             </label>
@@ -134,139 +191,132 @@ import PageLayout from '@layouts/PageLayout.astro'
               type="text"
               id="name"
               placeholder="留空则自动生成"
-              class="w-full rounded-lg border border-stone-300 bg-white px-4 py-2 text-stone-900 placeholder-stone-400 focus:border-stone-500 focus:ring-2 focus:ring-stone-500/20 focus:outline-none dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100 dark:placeholder-stone-500"
+              class="w-full rounded-lg border border-stone-200/80 bg-white/45 px-3 py-2.5 text-sm text-stone-900 placeholder-stone-400 transition-colors focus:border-stone-400 focus:ring-2 focus:ring-stone-500/10 focus:outline-none dark:border-stone-800 dark:bg-stone-950/35 dark:text-stone-100 dark:placeholder-stone-500 dark:focus:border-stone-600"
             />
           </div>
-
-          <button
-            id="submit-btn"
-            class="w-full rounded-lg bg-stone-900 px-6 py-3 font-medium text-white transition-all hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900 dark:hover:bg-stone-200"
-          >
-            <span id="submit-text">发布碎碎念</span>
-            <span id="submit-loading" class="hidden">
-              <svg class="inline h-5 w-5 animate-spin" viewBox="0 0 24 24">
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                  fill="none"></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              发布中...
-            </span>
-          </button>
         </div>
 
-        <!-- 预览区 -->
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <label
-              class="text-sm font-medium text-stone-700 dark:text-stone-300"
-            >
-              预览
-            </label>
-            <span class="text-xs text-stone-500 dark:text-stone-400"
-              >实时预览效果</span
-            >
+        <aside
+          class="rounded-xl border border-stone-200/70 bg-white/35 p-4 dark:border-stone-800 dark:bg-stone-900/35"
+        >
+          <h2 class="text-sm font-medium text-stone-900 dark:text-stone-100">
+            发布说明
+          </h2>
+          <ul
+            class="mt-3 space-y-2 text-xs leading-relaxed text-stone-500 dark:text-stone-400"
+          >
+            <li>内容支持 Markdown，可以插入图片链接。</li>
+            <li>发布后会创建 GitHub Commit。</li>
+            <li>网站会在几分钟内自动重新部署。</li>
+            <li>API Token 请只在自己的设备保存。</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section
+        class="animate rounded-xl border border-stone-200/70 bg-white/35 p-4 dark:border-stone-800 dark:bg-stone-900/35"
+      >
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <h2 class="text-sm font-medium text-stone-900 dark:text-stone-100">
+            预览
+          </h2>
+          <span class="text-xs text-stone-500 dark:text-stone-400">
+            实时更新
+          </span>
+        </div>
+        <div
+          class="rounded-lg border border-stone-200/65 bg-white/35 p-4 dark:border-stone-800 dark:bg-stone-950/30"
+        >
+          <div class="flex items-center gap-2 py-1 text-xs font-semibold">
+            <div class="h-1.5 w-1.5 rounded-full bg-rose-300"></div>
+            <span class="text-rose-500">
+              刚刚 · 周<span id="preview-weekday">?</span>
+            </span>
+            <span id="preview-tags" class="text-stone-400 dark:text-stone-500">
+              #日常
+            </span>
           </div>
           <div
-            class="min-h-[200px] rounded-lg border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-800/50"
+            class="ml-0.5 border-l border-stone-200 py-4 pl-5 dark:border-stone-800"
           >
-            <div
-              class="flex items-center gap-2 py-1 text-xs font-semibold opacity-75"
+            <article
+              id="preview-content"
+              class="prose prose-sm prose-stone dark:prose-invert max-w-none"
             >
-              <div class="h-1.5 w-1.5 rounded-full bg-rose-300"></div>
-              <span class="text-rose-500">
-                刚刚 · 周<span id="preview-weekday">?</span>
-              </span>
-              <span
-                id="preview-tags"
-                class="text-stone-400 dark:text-stone-600"
-              >
-                #日常
-              </span>
-            </div>
-            <div
-              class="ml-0.5 border-l-2 border-stone-200 py-4 pl-6 dark:border-stone-700"
-            >
-              <article
-                id="preview-content"
-                class="prose prose-sm prose-stone dark:prose-invert"
-              >
-                <p class="text-stone-400 italic">在左侧输入内容开始预览...</p>
-              </article>
-            </div>
+              <p class="text-stone-400 italic">在上方输入内容开始预览...</p>
+            </article>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- 结果展示 -->
       <div id="result-section" class="animate hidden">
         <div
           id="result-success"
-          class="hidden rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20"
+          class="hidden rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/25"
         >
-          <div class="flex items-start gap-3">
-            <span class="text-2xl">🎉</span>
-            <div class="flex-1">
-              <h3 class="font-semibold text-green-800 dark:text-green-300">
-                发布成功！
-              </h3>
-              <p
-                id="result-message"
-                class="mt-1 text-sm text-green-700 dark:text-green-400"
-              >
-              </p>
-              <div id="result-links" class="mt-3 flex flex-wrap gap-2"></div>
-            </div>
-          </div>
+          <h3 class="font-semibold text-emerald-800 dark:text-emerald-300">
+            发布成功
+          </h3>
+          <p
+            id="result-message"
+            class="mt-1 text-sm text-emerald-700 dark:text-emerald-400"
+          >
+          </p>
+          <div id="result-links" class="mt-3 flex flex-wrap gap-2"></div>
         </div>
         <div
           id="result-error"
-          class="hidden rounded-lg border border-rose-200 bg-rose-50 p-4 dark:border-rose-800 dark:bg-rose-900/20"
+          class="hidden rounded-xl border border-rose-200 bg-rose-50/80 p-4 dark:border-rose-900/70 dark:bg-rose-950/25"
         >
-          <div class="flex items-start gap-3">
-            <span class="text-2xl">😢</span>
-            <div>
-              <h3 class="font-semibold text-rose-800 dark:text-rose-300">
-                发布失败
-              </h3>
-              <p
-                id="error-message"
-                class="mt-1 text-sm text-rose-700 dark:text-rose-400"
-              >
-              </p>
-            </div>
-          </div>
+          <h3 class="font-semibold text-rose-800 dark:text-rose-300">
+            发布失败
+          </h3>
+          <p
+            id="error-message"
+            class="mt-1 text-sm text-rose-700 dark:text-rose-400"
+          >
+          </p>
         </div>
       </div>
 
-      <!-- 帮助信息 -->
-      <div
-        class="animate rounded-lg border border-stone-200 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-800/50"
+      <button
+        id="submit-btn"
+        type="button"
+        class="animate inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-stone-950 px-6 text-sm font-medium text-white transition-all hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-stone-100 dark:text-stone-950 dark:hover:bg-stone-200"
       >
-        <h3 class="mb-2 font-medium text-stone-900 dark:text-stone-100">
-          💡 使用说明
-        </h3>
-        <ul class="space-y-1 text-sm text-stone-600 dark:text-stone-400">
-          <li>• 内容支持 Markdown 格式，可以插入图片链接</li>
-          <li>• 发布后会自动创建 GitHub Commit</li>
-          <li>• 网站会在几分钟内自动重新部署更新</li>
-          <li>• API Token 仅保存在浏览器本地，请妥善保管</li>
-        </ul>
-      </div>
+        <span id="submit-text">发布碎碎念</span>
+        <span id="submit-loading" class="hidden">
+          <svg class="inline h-4 w-4 animate-spin" viewBox="0 0 24 24">
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+              fill="none"></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          发布中...
+        </span>
+      </button>
     </div>
   </Container>
 </PageLayout>
 
 <script>
+  import {
+    compressImageForUpload,
+    escapeMarkdownAlt,
+    formatBytes,
+    formatCompression,
+    uploadImageFile,
+  } from '@lib/upload-client'
+
   // 获取当前星期几
   function getWeekday(): string {
     const weekdays = ['日', '一', '二', '三', '四', '五', '六']
@@ -311,8 +361,44 @@ import PageLayout from '@layouts/PageLayout.astro'
     )
   }
 
+  type UploadStatusTone = 'muted' | 'success' | 'error'
+
+  const THOUGHT_DRAFT_STORAGE_KEY = 'thought_composer_draft'
+
+  interface ThoughtDraft {
+    content: string
+    name: string
+    updatedAt: number
+  }
+
+  function readThoughtDraft(): ThoughtDraft | null {
+    try {
+      const raw = localStorage.getItem(THOUGHT_DRAFT_STORAGE_KEY)
+      if (!raw) return null
+
+      const draft = JSON.parse(raw) as Partial<ThoughtDraft>
+      return {
+        content: typeof draft.content === 'string' ? draft.content : '',
+        name: typeof draft.name === 'string' ? draft.name : '',
+        updatedAt:
+          typeof draft.updatedAt === 'number' ? draft.updatedAt : Date.now(),
+      }
+    } catch {
+      localStorage.removeItem(THOUGHT_DRAFT_STORAGE_KEY)
+      return null
+    }
+  }
+
+  function clearThoughtDraft(): void {
+    localStorage.removeItem(THOUGHT_DRAFT_STORAGE_KEY)
+  }
+
   // 初始化
-  document.addEventListener('DOMContentLoaded', () => {
+  function initThoughtComposer(): void {
+    const composer = document.getElementById('thought-composer')
+    if (!composer || composer.dataset.initialized === 'true') return
+    composer.dataset.initialized = 'true'
+
     const contentEl = document.getElementById('content') as HTMLTextAreaElement
     const nameEl = document.getElementById('name') as HTMLInputElement
     const tokenEl = document.getElementById('api-token') as HTMLInputElement
@@ -331,6 +417,18 @@ import PageLayout from '@layouts/PageLayout.astro'
     const resultMessage = document.getElementById('result-message')!
     const resultLinks = document.getElementById('result-links')!
     const errorMessage = document.getElementById('error-message')!
+    const tokenFeedback = document.getElementById('token-feedback')!
+    const imageUploadBtn = document.getElementById(
+      'image-upload-btn',
+    ) as HTMLButtonElement
+    const imageUploadInput = document.getElementById(
+      'image-upload-input',
+    ) as HTMLInputElement
+    const imageUploadLabel = document.getElementById('image-upload-label')!
+    const imageUploadStatus = document.getElementById('image-upload-status')!
+    const thoughtEditorSection = document.getElementById(
+      'thought-editor-section',
+    )!
 
     // 设置预览星期
     previewWeekdayEl.textContent = getWeekday()
@@ -341,19 +439,31 @@ import PageLayout from '@layouts/PageLayout.astro'
       tokenEl.value = savedToken
     }
 
+    const savedDraft = readThoughtDraft()
+    if (savedDraft) {
+      contentEl.value = savedDraft.content
+      nameEl.value = savedDraft.name
+    }
+
     // 保存 token
     document.getElementById('save-token-btn')?.addEventListener('click', () => {
-      localStorage.setItem('thought_api_token', tokenEl.value)
-      alert('Token 已保存！')
+      const token = tokenEl.value.trim()
+      if (token) {
+        localStorage.setItem('thought_api_token', token)
+        tokenFeedback.textContent = 'Token 已保存。'
+      } else {
+        localStorage.removeItem('thought_api_token')
+        tokenFeedback.textContent = 'Token 已清除。'
+      }
+      tokenFeedback.classList.remove('hidden')
     })
 
     // 获取选中的标签
     function getSelectedTags(): string[] {
       const tags: string[] = []
-      tagsContainer.querySelectorAll('.tag-btn').forEach((btn) => {
-        // 检查是否为 active 状态（通过背景色判断）
-        if (btn.className.includes('bg-stone-900')) {
-          tags.push((btn as HTMLElement).dataset.tag!)
+      tagsContainer.querySelectorAll<HTMLElement>('.tag-btn').forEach((btn) => {
+        if (isTagActive(btn) && btn.dataset.tag) {
+          tags.push(btn.dataset.tag)
         }
       })
       return tags
@@ -365,17 +475,50 @@ import PageLayout from '@layouts/PageLayout.astro'
       previewTagsEl.textContent = tags.map((t) => `#${t}`).join(' ') || '#日常'
     }
 
+    function updateContentPreview(): void {
+      const text = contentEl.value
+      charCountEl.textContent = `${text.length} 字`
+      previewContentEl.innerHTML = parseMarkdown(text)
+    }
+
+    function saveThoughtDraft(): void {
+      const content = contentEl.value
+      const name = nameEl.value
+
+      if (!content.trim() && !name.trim()) {
+        clearThoughtDraft()
+        return
+      }
+
+      localStorage.setItem(
+        THOUGHT_DRAFT_STORAGE_KEY,
+        JSON.stringify({
+          content,
+          name,
+          updatedAt: Date.now(),
+        }),
+      )
+    }
+
     const activeClass =
-      'tag-btn rounded-full border border-stone-900 bg-stone-900 px-3 py-1 text-xs font-medium text-white transition-all dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
+      'tag-btn rounded-md border border-stone-900 bg-stone-900 px-2.5 py-1.5 text-xs font-medium text-white transition-all dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
     const inactiveClass =
-      'tag-btn rounded-full border border-stone-300 px-3 py-1 text-xs font-medium text-stone-600 transition-all hover:border-stone-400 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-400 dark:hover:border-stone-500 dark:hover:bg-stone-700'
+      'tag-btn rounded-md border border-stone-200/80 bg-white/35 px-2.5 py-1.5 text-xs font-medium text-stone-500 transition-all hover:border-stone-300 hover:bg-white/70 hover:text-stone-800 dark:border-stone-800 dark:bg-stone-900/45 dark:text-stone-400 dark:hover:border-stone-700 dark:hover:bg-stone-800 dark:hover:text-stone-100'
+
+    function isTagActive(btn: Element): boolean {
+      return btn.getAttribute('aria-pressed') === 'true'
+    }
+
+    function setTagActive(btn: HTMLElement, isActive: boolean): void {
+      btn.className = isActive ? activeClass : inactiveClass
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false')
+    }
 
     // 标签点击
     tagsContainer.addEventListener('click', (e) => {
       const btn = (e.target as HTMLElement).closest('.tag-btn') as HTMLElement
       if (btn) {
-        const isActive = btn.className.includes('bg-stone-900')
-        btn.className = isActive ? inactiveClass : activeClass
+        setTagActive(btn, !isTagActive(btn))
         updatePreviewTags()
       }
     })
@@ -387,18 +530,17 @@ import PageLayout from '@layouts/PageLayout.astro'
         const tag = customTagEl.value.trim()
 
         // 检查是否已存在
-        const existing = tagsContainer.querySelector(`[data-tag="${tag}"]`)
+        const existing = Array.from(
+          tagsContainer.querySelectorAll<HTMLElement>('.tag-btn'),
+        ).find((btn) => btn.dataset.tag === tag)
         if (existing) {
-          // 切换为 active 样式
-          existing.className =
-            'tag-btn rounded-full border border-stone-900 bg-stone-900 px-3 py-1 text-xs font-medium text-white transition-all dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
+          setTagActive(existing, true)
         } else {
           const btn = document.createElement('button')
           btn.type = 'button'
-          btn.className =
-            'tag-btn rounded-full border border-stone-900 bg-stone-900 px-3 py-1 text-xs font-medium text-white transition-all dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
           btn.dataset.tag = tag
           btn.textContent = tag
+          setTagActive(btn, true)
           tagsContainer.appendChild(btn)
         }
 
@@ -407,11 +549,188 @@ import PageLayout from '@layouts/PageLayout.astro'
       }
     })
 
-    // 内容输入 - 更新字数和预览
+    updateContentPreview()
+
+    // 内容输入 - 更新字数、预览和本地草稿
     contentEl.addEventListener('input', () => {
-      const text = contentEl.value
-      charCountEl.textContent = `${text.length} 字`
-      previewContentEl.innerHTML = parseMarkdown(text)
+      updateContentPreview()
+      saveThoughtDraft()
+    })
+
+    nameEl.addEventListener('input', saveThoughtDraft)
+
+    function setImageUploadStatus(
+      message: string,
+      tone: UploadStatusTone = 'muted',
+    ): void {
+      imageUploadStatus.textContent = message
+      imageUploadStatus.classList.remove(
+        'hidden',
+        'text-stone-500',
+        'dark:text-stone-400',
+        'text-emerald-600',
+        'dark:text-emerald-400',
+        'text-rose-600',
+        'dark:text-rose-400',
+      )
+
+      if (tone === 'success') {
+        imageUploadStatus.classList.add(
+          'text-emerald-600',
+          'dark:text-emerald-400',
+        )
+      } else if (tone === 'error') {
+        imageUploadStatus.classList.add('text-rose-600', 'dark:text-rose-400')
+      } else {
+        imageUploadStatus.classList.add('text-stone-500', 'dark:text-stone-400')
+      }
+    }
+
+    function setImageUploadBusy(isBusy: boolean): void {
+      imageUploadBtn.disabled = isBusy
+      imageUploadLabel.textContent = isBusy ? '上传中' : '图片'
+    }
+
+    const dropActiveClasses = [
+      'border-stone-400',
+      'bg-stone-100/55',
+      'dark:border-stone-600',
+      'dark:bg-stone-800/35',
+    ]
+    let imageDragDepth = 0
+
+    function hasDraggedFiles(dataTransfer: DataTransfer | null): boolean {
+      if (!dataTransfer) return false
+      if (dataTransfer.items.length > 0) {
+        return Array.from(dataTransfer.items).some(
+          (item) => item.kind === 'file',
+        )
+      }
+      return dataTransfer.files.length > 0
+    }
+
+    function getImageFiles(files: FileList | File[]): File[] {
+      return Array.from(files).filter((file) => file.type.startsWith('image/'))
+    }
+
+    function setImageDropActive(isActive: boolean): void {
+      thoughtEditorSection.classList.toggle('ring-2', isActive)
+      thoughtEditorSection.classList.toggle('ring-stone-400/30', isActive)
+      thoughtEditorSection.classList.toggle('dark:ring-stone-500/30', isActive)
+      thoughtEditorSection.classList[isActive ? 'add' : 'remove'](
+        ...dropActiveClasses,
+      )
+    }
+
+    function insertMarkdownAtCursor(markdown: string): void {
+      const start = contentEl.selectionStart ?? contentEl.value.length
+      const end = contentEl.selectionEnd ?? contentEl.value.length
+      const before = contentEl.value.slice(0, start)
+      const after = contentEl.value.slice(end)
+      const prefix = before && !before.endsWith('\n') ? '\n\n' : ''
+      const suffix = after && !after.startsWith('\n') ? '\n\n' : ''
+
+      contentEl.setRangeText(`${prefix}${markdown}${suffix}`, start, end, 'end')
+      contentEl.dispatchEvent(new Event('input', { bubbles: true }))
+      contentEl.focus()
+    }
+
+    async function uploadSelectedImages(files: File[]): Promise<void> {
+      if (files.length === 0) return
+
+      const token = tokenEl.value.trim()
+      if (!token) {
+        alert('请先输入 API Token')
+        tokenEl.focus()
+        return
+      }
+
+      setImageUploadBusy(true)
+
+      try {
+        const markdownList: string[] = []
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+
+          if (!file.type.startsWith('image/')) {
+            throw new Error(`${file.name} 不是图片文件`)
+          }
+
+          setImageUploadStatus(
+            `正在压缩 ${i + 1}/${files.length}：${file.name} (${formatBytes(file.size)})`,
+          )
+
+          const uploadFile = await compressImageForUpload(file)
+          setImageUploadStatus(
+            `正在上传 ${i + 1}/${files.length}：${file.name} (${formatCompression(file.size, uploadFile.size)})`,
+          )
+          const imageUrl = await uploadImageFile(uploadFile, token, {
+            folder: 'thoughts',
+          })
+          markdownList.push(`![${escapeMarkdownAlt(file.name)}](${imageUrl})`)
+        }
+
+        insertMarkdownAtCursor(markdownList.join('\n\n'))
+        setImageUploadStatus(
+          `已插入 ${files.length} 张图片 Markdown。`,
+          'success',
+        )
+      } catch (error) {
+        setImageUploadStatus(
+          error instanceof Error ? error.message : '图片上传失败',
+          'error',
+        )
+      } finally {
+        setImageUploadBusy(false)
+        imageUploadInput.value = ''
+      }
+    }
+
+    imageUploadBtn.addEventListener('click', () => {
+      imageUploadInput.click()
+    })
+
+    imageUploadInput.addEventListener('change', () => {
+      void uploadSelectedImages(Array.from(imageUploadInput.files || []))
+    })
+
+    thoughtEditorSection.addEventListener('dragenter', (event) => {
+      if (!hasDraggedFiles(event.dataTransfer)) return
+
+      event.preventDefault()
+      imageDragDepth += 1
+      setImageDropActive(true)
+    })
+
+    thoughtEditorSection.addEventListener('dragover', (event) => {
+      if (!hasDraggedFiles(event.dataTransfer)) return
+
+      event.preventDefault()
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+    })
+
+    thoughtEditorSection.addEventListener('dragleave', (event) => {
+      if (!hasDraggedFiles(event.dataTransfer)) return
+
+      imageDragDepth = Math.max(0, imageDragDepth - 1)
+      if (imageDragDepth === 0) setImageDropActive(false)
+    })
+
+    thoughtEditorSection.addEventListener('drop', (event) => {
+      if (!hasDraggedFiles(event.dataTransfer)) return
+
+      event.preventDefault()
+      imageDragDepth = 0
+      setImageDropActive(false)
+
+      const imageFiles = getImageFiles(event.dataTransfer?.files || [])
+      if (imageFiles.length === 0) {
+        setImageUploadStatus('拖入的文件里没有图片', 'error')
+        return
+      }
+
+      void uploadSelectedImages(imageFiles)
     })
 
     // 提交
@@ -453,24 +772,11 @@ import PageLayout from '@layouts/PageLayout.astro'
           }),
         })
 
-        const data = await response.json().catch(() => null)
-
-        if (!response.ok) {
-          let message = data?.message || data?.error || '未知错误'
-
-          if (response.status === 404 || response.status === 405) {
-            message =
-              '在线发布接口未启用，请先按 docs/deploy-vercel.md 部署内置 API'
-          } else if (response.status === 401) {
-            message = 'API Token 无效，请检查 THOUGHT_API_TOKEN 配置'
-          }
-
-          throw new Error(message)
-        }
+        const data = await response.json()
 
         resultSection.classList.remove('hidden')
 
-        if (data?.success) {
+        if (data.success) {
           resultSuccess.classList.remove('hidden')
           resultError.classList.add('hidden')
           resultMessage.textContent = `碎碎念已成功创建！文件: ${data.data.filename}`
@@ -495,10 +801,11 @@ import PageLayout from '@layouts/PageLayout.astro'
           charCountEl.textContent = '0 字'
           previewContentEl.innerHTML =
             '<p class="text-stone-400 italic">在左侧输入内容开始预览...</p>'
+          clearThoughtDraft()
         } else {
           resultSuccess.classList.add('hidden')
           resultError.classList.remove('hidden')
-          errorMessage.textContent = data?.message || '未知错误'
+          errorMessage.textContent = data.message || '未知错误'
         }
       } catch (error) {
         resultSection.classList.remove('hidden')
@@ -512,10 +819,16 @@ import PageLayout from '@layouts/PageLayout.astro'
         document.getElementById('submit-loading')!.classList.add('hidden')
       }
     })
-  })
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initThoughtComposer, {
+      once: true,
+    })
+  } else {
+    initThoughtComposer()
+  }
 
   // Astro View Transitions 支持
-  document.addEventListener('astro:page-load', () => {
-    // 重新初始化（如果需要）
-  })
+  document.addEventListener('astro:page-load', initThoughtComposer)
 </script>

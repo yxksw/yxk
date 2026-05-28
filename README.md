@@ -2,11 +2,11 @@
 
 一个静态优先、但可按需打开动态能力的 Astro 6 博客模板。
 
-基于 [Astro](https://astro.build) 和 [Tailwind CSS v4](https://tailwindcss.com) 构建，默认就能提供文章、碎碎念、搜索、RSS、PWA、目录导航等能力；仓库同时内置了可直接部署到 Vercel 的 `api/` 路由，用来支持评论、留言板、碎碎念点赞和网页端发布。
+基于 [Astro](https://astro.build) 和 [Tailwind CSS v4](https://tailwindcss.com) 构建，默认就能提供文章、碎碎念、相册、搜索、RSS、PWA、目录导航等能力；仓库同时内置了可直接部署到 Vercel 的 `api/` 路由，用来支持评论、留言板、碎碎念点赞、相册和网页端发布。
 
 ## 预览
 
-![Astro Doge](./preview.webp)
+![Astro Doge preview](./preview.webp)
 
 <details>
   <summary>Lighthouse 全绿，展开查看</summary>
@@ -18,28 +18,36 @@
 ## 模板包含什么
 
 - 静态优先：默认输出静态站点，纯内容博客可以直接部署到任意静态托管平台
-- 内容系统：Markdown / MDX 文章与碎碎念，附带创建脚本
+- 内容系统：Markdown / MDX 文章、碎碎念与相册，附带创建脚本
 - 阅读体验：目录导航、图片灯箱、标题锚点、阅读时长、相关文章
 - 内容输出：RSS、`robots.txt`、sitemap、PWA、外链标记、GitHub Alerts
 - 本地搜索：`Ctrl+K` / `Cmd+K` 呼出搜索框
-- 可选动态能力：GitHub Issues 评论 / 留言板、碎碎念点赞、`/thoughts/new` 在线发布
+- 可选动态能力：GitHub Issues 评论 / 留言板、碎碎念点赞、`/thoughts/new` 和 `/moments/new` 在线发布
 
 ## 快速开始
 
-### 1. 获取模板
+### 1. 获取模板并安装依赖
 
 ```bash
 git clone https://github.com/dogxii/astro-doge.git my-blog
 cd my-blog
-```
-
-### 2. 安装依赖
-
-推荐使用 [Bun](https://bun.sh)：
-
-```bash
 bun install
 ```
+
+如果你习惯用 GitHub Template，也可以直接从仓库页面点击 `Use this template` 创建自己的博客仓库。
+
+### 2. 修改基础配置
+
+至少先改这几个地方：
+
+- `astro.config.mjs`
+  把 `site` 改成你的线上域名，并把 `allowHostnames` 改成自己的域名
+- `src/consts.ts`
+  修改站点名、描述、作者、邮箱、社交链接、项目和技术栈
+- `public/avatar.png`、`public/favicon.ico`、`public/manifest.json`
+  替换头像、站点图标和 PWA 信息
+
+如果只是本地试用，可以先跳过这一步。
 
 ### 3. 本地开发
 
@@ -49,11 +57,47 @@ bun dev
 
 打开 `http://localhost:4321`。
 
-### 4. 构建检查
+### 4. 写内容
+
+```bash
+bun new:blog my-first-post
+bun t random-note "今天又学到一个新东西"
+```
+
+文章、碎碎念和相册也可以直接手动放进这些目录：
+
+- `src/content/posts/`
+- `src/content/thoughts/`
+- `src/content/albums/`
+
+### 5. 构建检查
 
 ```bash
 bun run build
 ```
+
+构建产物会输出到 `dist/`。
+
+### 6. 部署
+
+这个模板可以部署到 Vercel 以外的平台。
+
+如果你只需要文章、碎碎念、相册、搜索、RSS、PWA 这些静态能力，直接把 `dist/` 部署到任意静态托管平台即可，例如：
+
+- Netlify
+- Cloudflare Pages
+- GitHub Pages
+- Vercel
+- 你自己的 Nginx / Caddy 静态服务器
+
+常见配置：
+
+| 平台                          | Build Command   | Output Directory |
+| ----------------------------- | --------------- | ---------------- |
+| Vercel / Netlify / Cloudflare | `bun run build` | `dist`           |
+| GitHub Pages                  | `bun run build` | `dist`           |
+
+如果要使用内置评论、留言板、点赞、网页端发布和图片上传代理，推荐部署到 Vercel。仓库根目录的 `api/` 是 Vercel Serverless API 写法，其他平台不能直接无改动复用；你可以按 [API Contract](./docs/api-contract.md) 在 Netlify Functions、Cloudflare Workers 或自己的服务里实现同样接口。
 
 ## 初始化时先改这些
 
@@ -69,8 +113,8 @@ bun run build
   页脚署名和链接
 - `public/avatar.png`、`public/favicon.ico`、`public/manifest.json`
   头像、图标和 PWA 元数据
-- `src/content/posts/`、`src/content/thoughts/`
-  删除示例内容，换成你自己的文章和碎碎念
+- `src/content/posts/`、`src/content/thoughts/`、`src/content/albums/`
+  删除示例内容，换成你自己的文章、碎碎念和相册
 
 ## 写内容
 
@@ -121,11 +165,30 @@ tags:
 今天又学到一个新东西。
 ```
 
-## 两种部署方式
+### 写相册
 
-### 1. 纯静态部署
+相册内容放在 `src/content/albums/`，可以使用本地图片路径，也可以使用外部图床 URL：
 
-这是模板默认工作方式：
+```md
+---
+title: 一张照片
+date: 2026-04-23T09:00:00+08:00
+src: /images/photo.webp
+thumb: /images/photo-thumb.webp
+alt: 照片描述
+description: 可选说明
+location: Zhengzhou
+width: 1600
+height: 1200
+draft: false
+---
+```
+
+## 部署方式
+
+### 1. 纯静态部署到任意平台
+
+这是模板默认工作方式，也是最省心的部署方式：
 
 ```bash
 bun run build
@@ -133,12 +196,13 @@ bun run build
 
 产物在 `dist/`，可以直接部署到：
 
-- Vercel
 - Netlify
 - Cloudflare Pages
 - GitHub Pages
+- Vercel
+- 自己的静态服务器
 
-这时评论、留言板、点赞和 `/thoughts/new` 在线发布不会生效，但页面本身仍可正常访问。
+这时评论、留言板、点赞、图片上传和在线发布不会生效，但页面本身仍可正常访问。
 
 ### 2. Vercel 部署内置 API
 
@@ -148,6 +212,9 @@ bun run build
 - `api/submit-comment.ts`
 - `api/likes.ts`
 - `api/add-thought.ts`
+- `api/add-album.ts`
+- `api/upload-sign.ts`
+- `api/upload-complete.ts`
 - `vercel.json`
 
 部署说明见：
@@ -160,6 +227,17 @@ bun run build
 - 文章评论和留言板
 - 碎碎念点赞
 - `/thoughts/new` 在线发布
+- `/moments/new` 在线发布相册
+- 通过你自己的上传签名服务接入图片上传
+
+### 3. 其他平台 + 自己的 API
+
+如果你想部署在 Vercel 以外的平台，同时保留动态能力，有两种做法：
+
+- 只把前端静态站点部署到 Netlify / Cloudflare Pages / GitHub Pages，动态接口放到自己的后端服务
+- 把 [API Contract](./docs/api-contract.md) 里的接口迁移到 Netlify Functions、Cloudflare Workers、Node.js 服务或其他 Serverless 平台
+
+前端只关心接口路径和返回 JSON，不要求后端一定运行在 Vercel。
 
 ## 环境变量
 
@@ -177,10 +255,13 @@ bun run build
 | `GITHUB_REPO`                                | 通用回退仓库；如果不想拆多个仓库，可以只配它      |
 | `CONTENT_BRANCH`                             | 在线发布写入的分支，默认 `main`                   |
 | `THOUGHTS_CONTENT_DIR`                       | 在线发布写入目录，默认 `src/content/thoughts`     |
+| `ALBUMS_CONTENT_DIR`                         | 相册在线发布写入目录，默认 `src/content/albums`   |
 | `SITE_TIMEZONE`                              | 在线发布时间和点赞日切使用的时区                  |
 | `OWNER_NAME` / `OWNER_EMAIL` / `OWNER_TOKEN` | 博主身份校验                                      |
 | `PUBLIC_OWNER_NAME` / `PUBLIC_OWNER_EMAIL`   | 前端用于提示博主输入 token，后者可选              |
-| `THOUGHT_API_TOKEN`                          | `/thoughts/new` 页面使用的发布口令                |
+| `THOUGHT_API_TOKEN`                          | `/thoughts/new` 和 `/moments/new` 使用的发布口令  |
+| `R2_IMAGE_BASE_URL`                          | 可选图片上传签名服务地址                          |
+| `COMMENT_AUTHOR_LOGIN`                       | 可选，只读取指定 GitHub 用户创建的评论            |
 
 ## 什么时候需要自己写后端
 

@@ -1,20 +1,21 @@
 ---
-import { cn } from "@lib/utils";
+import { cn } from '@lib/utils'
 
 type Props = {
-	href: string;
-	external?: boolean;
-	underline?: boolean;
-	class?: string;
-};
+  href: string
+  external?: boolean
+  underline?: boolean
+  class?: string
+  [key: string]: unknown
+}
 
 const {
-	href,
-	external,
-	underline = true,
-	class: className,
-	...rest
-} = Astro.props;
+  href,
+  external,
+  underline = true,
+  class: className,
+  ...rest
+} = Astro.props
 ---
 
 <a

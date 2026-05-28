@@ -16,195 +16,217 @@ const thoughts = await Promise.all(
   collection.map(async (item: CollectionEntry<'thoughts'>, index: number) => {
     const { Content } = await render(item)
     const thoughtId = collection.length - index
-    const dateStr = item.data.date.toISOString().split('T')[0]
-    return { ...item, Content, thoughtId, dateStr }
+    return { ...item, Content, thoughtId }
   }),
 )
 
 const colors = [
   {
-    bg: 'bg-rose-300',
-    light: 'border-rose-300',
-    dark: 'dark:border-rose-500/40',
-    text: 'text-rose-500',
+    dot: 'bg-rose-300/70 dark:bg-rose-400/65',
+    text: 'text-rose-500 dark:text-rose-300',
+    hover: 'hover:text-rose-600 dark:hover:text-rose-200',
   },
   {
-    bg: 'bg-orange-300',
-    light: 'border-orange-300',
-    dark: 'dark:border-orange-500/40',
-    text: 'text-orange-500',
+    dot: 'bg-orange-300/70 dark:bg-orange-400/65',
+    text: 'text-orange-500 dark:text-orange-300',
+    hover: 'hover:text-orange-600 dark:hover:text-orange-200',
   },
   {
-    bg: 'bg-amber-300',
-    light: 'border-amber-300',
-    dark: 'dark:border-amber-500/40',
-    text: 'text-amber-500',
+    dot: 'bg-amber-300/75 dark:bg-amber-400/65',
+    text: 'text-amber-600 dark:text-amber-300',
+    hover: 'hover:text-amber-700 dark:hover:text-amber-200',
   },
   {
-    bg: 'bg-sky-300',
-    light: 'border-sky-300',
-    dark: 'dark:border-sky-500/40',
-    text: 'text-sky-500',
+    dot: 'bg-sky-300/70 dark:bg-sky-400/65',
+    text: 'text-sky-500 dark:text-sky-300',
+    hover: 'hover:text-sky-600 dark:hover:text-sky-200',
   },
   {
-    bg: 'bg-indigo-300',
-    light: 'border-indigo-300',
-    dark: 'dark:border-indigo-500/40',
-    text: 'text-indigo-500',
+    dot: 'bg-indigo-300/70 dark:bg-indigo-400/65',
+    text: 'text-indigo-500 dark:text-indigo-300',
+    hover: 'hover:text-indigo-600 dark:hover:text-indigo-200',
   },
   {
-    bg: 'bg-purple-300',
-    light: 'border-purple-300',
-    dark: 'dark:border-purple-500/40',
-    text: 'text-purple-500',
-  },
-  {
-    bg: 'bg-fuchsia-300',
-    light: 'border-fuchsia-300',
-    dark: 'dark:border-fuchsia-500/40',
-    text: 'text-fuchsia-500',
-  },
-  {
-    bg: 'bg-pink-300',
-    light: 'border-pink-300',
-    dark: 'dark:border-pink-500/40',
-    text: 'text-pink-500',
+    dot: 'bg-fuchsia-300/70 dark:bg-fuchsia-400/65',
+    text: 'text-fuchsia-500 dark:text-fuchsia-300',
+    hover: 'hover:text-fuchsia-600 dark:hover:text-fuchsia-200',
   },
 ]
 
 const dateColorMap = new Map<string, number>()
-let colorIndex = 0
 thoughts.forEach((thought) => {
-  if (!dateColorMap.has(thought.dateStr)) {
-    dateColorMap.set(thought.dateStr, colorIndex % colors.length)
-    colorIndex++
+  const dateKey = thought.data.date.toISOString().split('T')[0]
+  if (!dateColorMap.has(dateKey)) {
+    dateColorMap.set(dateKey, dateColorMap.size % colors.length)
   }
 })
 ---
 
 <PageLayout title={THOUGHTS.TITLE} description={THOUGHTS.DESCRIPTION}>
-  <Container>
-    <div class="space-y-8">
-      <div class="animate">
-        <h1 class="text-3xl font-semibold text-stone-900 dark:text-stone-100">
-          碎碎念
-        </h1>
-        <p class="mt-4 text-stone-600 dark:text-stone-400">
-          {`共 ${collection.length} 条碎碎念`}
+  <Container class="!max-w-3xl">
+    <div class="space-y-9">
+      <section class="py-4">
+        <div class="flex items-start gap-2">
+          <h1
+            class="text-3xl font-semibold text-stone-950 sm:text-4xl dark:text-stone-50"
+          >
+            碎碎念
+          </h1>
+          <a
+            href="/thoughts/new"
+            class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-stone-400/70 opacity-60 transition-all hover:bg-stone-100/70 hover:text-stone-800 hover:opacity-100 dark:text-stone-500 dark:hover:bg-stone-800/70 dark:hover:text-stone-100"
+            aria-label="写一条想法"
+            title="写一条想法"
+          >
+            <svg
+              class="h-3.5 w-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 19.5V5.8A2.8 2.8 0 0 1 6.8 3H19v16H6.8A2.8 2.8 0 0 0 4 21.8"
+              ></path>
+              <path d="M8 7h6"></path>
+              <path d="m13.5 14.5 4-4 1.5 1.5-4 4-2 .5.5-2Z"></path>
+            </svg>
+          </a>
+        </div>
+        <p
+          class="mt-3 max-w-2xl leading-relaxed text-stone-600 dark:text-stone-400"
+        >
+          一些不成文的瞬间，记录生活、心情与灵感。共 {collection.length} 条内容。
         </p>
-      </div>
-      <ul class="flex flex-col space-y-0">
-        {
-          thoughts.map((entry) => {
-            const colorIdx = dateColorMap.get(entry.dateStr) || 0
-            const color = colors[colorIdx]
-            return (
-              <li
-                id={`${entry.thoughtId}`}
-                class={`animate scroll-mt-20 ${color.light} ${color.dark} group`}
-              >
-                <div class="flex flex-wrap items-center gap-1.5 py-1.5 text-xs font-medium sm:gap-2">
-                  <div class={`h-2 w-2 ${color.bg} rounded-full shadow-sm`} />
-                  <a
-                    href={`#${entry.thoughtId}`}
-                    class={`thought-anchor cursor-pointer ${color.text} font-semibold transition-opacity hover:opacity-70`}
-                    data-thought-id={entry.thoughtId}
-                    title="复制链接"
-                  >
-                    #{entry.thoughtId}
-                  </a>
-                  <span class="text-stone-300 dark:text-stone-600">·</span>
-                  <span class="text-stone-500 dark:text-stone-400">
-                    发布于
-                    <span
-                      class="time-ago"
-                      data-timestamp={entry.data.date.getTime()}
-                    >
-                      {timeAgo(entry.data.date)}
-                    </span>
-                  </span>
-                  <span class="text-stone-300 dark:text-stone-600">·</span>
-                  <span class="font-mono text-stone-500 dark:text-stone-400">
-                    {formatThoughtDate(entry.data.date)}
-                  </span>
-                  <span class="hidden text-stone-500 sm:inline dark:text-stone-400">
-                    {getWeekday(entry.data.date)}
-                  </span>
-                  <span class="ml-auto flex items-center gap-1.5 sm:gap-2">
-                    {entry.data.tags && entry.data.tags.length > 0 && (
-                      <span class="thought-tags-wrapper hidden items-center gap-1.5 sm:flex sm:gap-2">
-                        <span class="text-stone-300 dark:text-stone-600">
-                          ·
-                        </span>
-                        <span class="text-stone-400 dark:text-stone-500">
-                          {entry.data.tags
-                            .map((tag: string) => `#${tag}`)
-                            .join(' ')}
+      </section>
+
+      <div class="relative mx-auto max-w-[720px] sm:pl-8">
+        <div
+          class="absolute top-0 bottom-0 left-0 hidden w-px bg-stone-200/75 sm:block dark:bg-stone-800/70"
+          aria-hidden="true"
+        >
+        </div>
+        <ul class="space-y-7 sm:space-y-8">
+          {
+            thoughts.map((entry) => {
+              const dateKey = entry.data.date.toISOString().split('T')[0]
+              const color = colors[dateColorMap.get(dateKey) ?? 0]
+
+              return (
+                <li
+                  id={`${entry.thoughtId}`}
+                  class="relative min-w-0 scroll-mt-24 border-b border-stone-200/35 pb-7 last:border-b-0 dark:border-stone-800/45"
+                >
+                  <span
+                    class={`absolute top-2 -left-[35px] hidden h-2 w-2 rounded-full ring-4 ring-[var(--paper)] sm:block ${color.dot}`}
+                    aria-hidden="true"
+                  />
+                  <div class="group min-w-0">
+                    <div class="thought-meta mb-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-stone-500 dark:text-stone-400">
+                      <a
+                        href={`#${entry.thoughtId}`}
+                        class={`thought-anchor font-mono font-semibold transition-colors ${color.text} ${color.hover}`}
+                        data-thought-id={entry.thoughtId}
+                        title="复制链接"
+                      >
+                        #{entry.thoughtId}
+                      </a>
+                      <span
+                        class="text-stone-300 dark:text-stone-600"
+                        aria-hidden="true"
+                      >
+                        ·
+                      </span>
+                      <span
+                        class="thought-time-meta inline-flex items-center gap-1"
+                        title={entry.data.date.toLocaleString('zh-CN')}
+                      >
+                        <span class="thought-time-prefix">发布于</span>
+                        <span
+                          class="thought-time-ago"
+                          data-timestamp={entry.data.date.getTime()}
+                        >
+                          {timeAgo(entry.data.date)}
                         </span>
                       </span>
-                    )}
-                    <span class="thought-like-wrap relative">
-                      <button
-                        type="button"
-                        class="thought-like-btn group/like flex items-center gap-1 rounded-full px-1.5 py-0.5 text-stone-400 transition-all duration-200 hover:text-rose-500 sm:px-2 sm:py-1 dark:text-stone-600 dark:hover:text-rose-400"
-                        data-thought-id={entry.thoughtId}
-                        data-liked="false"
-                        aria-label={`为第 ${entry.thoughtId} 条碎碎念点赞`}
-                      >
-                        <span
-                          class="thought-heart-empty"
-                          style="display:inline-flex;align-items:center;justify-content:center;"
-                        >
-                          <svg
-                            class="h-3.5 w-3.5 transition-colors duration-200 group-hover/like:text-rose-500"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                          >
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                          </svg>
-                        </span>
-                        <span
-                          class="thought-heart-filled"
-                          style="display:none;align-items:center;justify-content:center;"
-                        >
-                          <svg
-                            class="h-3.5 w-3.5 text-rose-500 dark:text-rose-400"
-                            viewBox="0 0 24 24"
-                            fill="currentColor"
-                            stroke="none"
-                          >
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                          </svg>
-                        </span>
-                        <span class="thought-like-count text-[11px] leading-none tabular-nums" />
-                      </button>
                       <span
-                        class="thought-bubble pointer-events-none absolute right-0 bottom-full mb-1.5 rounded-md px-2 py-1 text-[11px] leading-none font-medium whitespace-nowrap opacity-0"
+                        class="text-stone-300 dark:text-stone-600"
                         aria-hidden="true"
-                      />
-                    </span>
-                  </span>
-                </div>
-                <div class="mb-4 ml-0.5 border-b border-stone-200 py-3 sm:mb-0 sm:border-b-0 sm:border-l-2 sm:pl-6 dark:border-stone-800">
-                  <article class="prose-p:my-4! text-sm! font-medium [&_img]:my-2 [&_img]:mr-auto [&_img]:ml-0! [&_img]:h-auto [&_img]:w-auto [&_img]:max-w-60 [&_img]:object-contain sm:[&_img]:max-w-xs">
-                    <entry.Content />
-                  </article>
-                </div>
-              </li>
-            )
-          })
-        }
-      </ul>
+                      >
+                        ·
+                      </span>
+                      <time
+                        class="thought-time-meta"
+                        datetime={entry.data.date.toISOString()}
+                      >
+                        {formatThoughtDate(entry.data.date)}
+                      </time>
+                      <span class="hidden sm:inline">
+                        {getWeekday(entry.data.date)}
+                      </span>
+                      <span
+                        class="text-stone-300 dark:text-stone-600"
+                        aria-hidden="true"
+                      >
+                        ·
+                      </span>
+                      <span
+                        class="thought-like-wrap relative inline-flex items-center"
+                        data-tooltip="点击点赞"
+                      >
+                        <button
+                          type="button"
+                          class="thought-like-btn inline-flex h-5 items-center gap-1 rounded-sm px-0.5 text-stone-500 transition-colors duration-200 hover:text-rose-500 hover:opacity-85 active:scale-95 dark:text-stone-400 dark:hover:text-rose-400"
+                          data-thought-id={entry.thoughtId}
+                          data-liked="false"
+                          data-total="0"
+                          aria-label={`为第 ${entry.thoughtId} 条碎碎念点赞，当前 0 次，点击点赞`}
+                        >
+                          <span class="thought-like-inner inline-flex items-center gap-1">
+                            <span class="thought-heart-icon inline-flex h-[1.15em] w-[1.15em] items-center justify-center">
+                              <svg
+                                class="h-[1.1em] w-[1.1em]"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                              </svg>
+                            </span>
+                            <span class="thought-like-count text-[11px] leading-5 tabular-nums" />
+                          </span>
+                        </button>
+                        <span
+                          class="thought-bubble pointer-events-none absolute bottom-full mb-1.5 rounded-md px-2 py-1 text-[11px] leading-none font-medium whitespace-nowrap opacity-0"
+                          aria-hidden="true"
+                        />
+                      </span>
+                    </div>
+                    <article class="thought-entry prose-p:my-2.5! prose-li:my-1! prose-ul:my-3! prose-ol:my-3! min-w-0 text-[15px]! leading-7! font-normal break-words text-stone-900 sm:text-[15.5px]! dark:text-stone-100 [&_.expressive-code]:max-w-full [&_img]:my-4 [&_img]:mr-auto [&_img]:ml-0! [&_img]:h-auto [&_img]:w-auto [&_img]:max-w-full sm:[&_img]:max-w-sm [&_p:first-child]:mt-0! [&_p:last-child]:mb-0!">
+                      <entry.Content />
+                    </article>
+                  </div>
+                </li>
+              )
+            })
+          }
+        </ul>
+      </div>
     </div>
   </Container>
 
+  <!-- Toast 通知 (仅用于锚点复制) -->
   <div
     id="copy-toast"
-    class="pointer-events-none fixed bottom-8 left-1/2 z-50 -translate-x-1/2 transform opacity-0 transition-all duration-300"
+    class="pointer-events-none fixed bottom-24 left-1/2 z-50 -translate-x-1/2 transform opacity-0 transition-all duration-300 sm:bottom-8"
   >
     <div
       class="rounded-lg bg-stone-800/90 px-4 py-2 text-sm text-white shadow-lg dark:bg-stone-200 dark:text-stone-800"
@@ -215,9 +237,16 @@ thoughts.forEach((thought) => {
 </PageLayout>
 
 <script>
+  import { getLikes, sendLike, formatLikeCount } from '@lib/likes-client'
   import { setupTimeAgo } from '@lib/timeago-client'
-  import { formatLikeCount, getLikes, sendLike } from '@lib/likes-client'
 
+  interface ThoughtsWindow extends Window {
+    __astroDogeThoughtsController?: AbortController
+  }
+
+  const thoughtsWindow = window as ThoughtsWindow
+
+  // ========== 锚点复制 Toast（保留，仅用于复制链接）==========
   let toastTimer: ReturnType<typeof setTimeout> | null = null
 
   function showToast(message: string) {
@@ -235,6 +264,8 @@ thoughts.forEach((thought) => {
     }
   }
 
+  // ========== 气泡提示 ==========
+  // 每个按钮独立管理自己的气泡 timer
   const bubbleTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   type BubbleVariant = 'liked' | 'thanks' | 'error'
@@ -260,20 +291,32 @@ thoughts.forEach((thought) => {
     variant: BubbleVariant,
     duration = 1500,
   ) {
-    const wrap = btn.closest('.thought-like-wrap')
+    const wrap = btn.closest('.thought-like-wrap') as HTMLElement | null
     if (!wrap) return
     const bubble = wrap.querySelector('.thought-bubble') as HTMLElement | null
     if (!bubble) return
 
     const id = btn.dataset.thoughtId || ''
-    const oldTimer = bubbleTimers.get(id)
-    if (oldTimer) {
-      clearTimeout(oldTimer)
+
+    wrap.classList.add('is-hover-suppressed')
+    const clearHoverSuppression = () => {
+      wrap.classList.remove('is-hover-suppressed')
+    }
+    wrap.addEventListener('pointerleave', clearHoverSuppression, { once: true })
+    wrap.addEventListener('focusout', clearHoverSuppression, { once: true })
+
+    // 清除旧 timer
+    const old = bubbleTimers.get(id)
+    if (old) {
+      clearTimeout(old)
       bubbleTimers.delete(id)
     }
 
+    wrap.classList.add('is-bubbling')
+
+    // 重置所有样式类，再应用新的
     bubble.className = [
-      'thought-bubble pointer-events-none absolute right-0 bottom-full mb-1.5',
+      'thought-bubble pointer-events-none absolute bottom-full mb-1.5',
       'whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium leading-none',
       BUBBLE_STYLES[variant].bg,
       BUBBLE_STYLES[variant].text,
@@ -281,6 +324,7 @@ thoughts.forEach((thought) => {
     ].join(' ')
     bubble.textContent = message
 
+    // 下一帧触发入场动画
     requestAnimationFrame(() => {
       bubble.classList.add('bubble-visible')
     })
@@ -291,8 +335,9 @@ thoughts.forEach((thought) => {
       bubble.addEventListener(
         'transitionend',
         () => {
+          wrap.classList.remove('is-bubbling')
           bubble.className =
-            'thought-bubble pointer-events-none absolute right-0 bottom-full mb-1.5 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium leading-none opacity-0'
+            'thought-bubble pointer-events-none absolute bottom-full mb-1.5 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-medium leading-none opacity-0'
           bubble.textContent = ''
         },
         { once: true },
@@ -303,30 +348,36 @@ thoughts.forEach((thought) => {
     bubbleTimers.set(id, timer)
   }
 
-  function setupAnchorLinks() {
+  // ========== 锚链接 ==========
+  function setupAnchorLinks(signal: AbortSignal) {
     document.querySelectorAll('.thought-anchor').forEach((anchor) => {
-      anchor.addEventListener('click', async (e) => {
-        e.preventDefault()
-        const thoughtId = (anchor as HTMLElement).dataset.thoughtId
-        const url = `${window.location.origin}${window.location.pathname}#${thoughtId}`
+      anchor.addEventListener(
+        'click',
+        async (e) => {
+          e.preventDefault()
+          const thoughtId = (anchor as HTMLElement).dataset.thoughtId
+          const url = `${window.location.origin}${window.location.pathname}#${thoughtId}`
 
-        try {
-          await navigator.clipboard.writeText(url)
-          showToast('✓ 链接已复制')
-        } catch {
-          // ignore copy failure
-        }
+          try {
+            await navigator.clipboard.writeText(url)
+            showToast('✓ 链接已复制')
+          } catch {
+            // 复制失败忽略
+          }
 
-        history.pushState(null, '', `#${thoughtId}`)
+          history.pushState(null, '', `#${thoughtId}`)
 
-        const element = document.getElementById(`${thoughtId}`)
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
-      })
+          const element = document.getElementById(`${thoughtId}`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }
+        },
+        { signal },
+      )
     })
   }
 
+  // ========== 高亮动画 ==========
   function highlightAnchor() {
     const hash = window.location.hash.slice(1)
     if (hash) {
@@ -340,68 +391,60 @@ thoughts.forEach((thought) => {
     }
   }
 
+  // ========== 点赞按钮 UI 更新 ==========
   function updateLikeButton(
     btn: HTMLElement,
     total: number,
     userToday: number,
   ) {
+    const wrap = btn.closest('.thought-like-wrap') as HTMLElement | null
     const countEl = btn.querySelector('.thought-like-count') as HTMLElement
-    const emptyHeart = btn.querySelector('.thought-heart-empty') as HTMLElement
-    const filledHeart = btn.querySelector(
-      '.thought-heart-filled',
-    ) as HTMLElement
 
-    if (!countEl || !emptyHeart || !filledHeart) return
+    if (!countEl) return
 
-    countEl.textContent = formatLikeCount(total)
+    // 更新计数
+    const formatted = formatLikeCount(total)
+    btn.dataset.total = String(total)
+    countEl.textContent = formatted
 
+    // 今天已点赞 → 标记状态并切换 hover 提示
     if (userToday > 0) {
       btn.dataset.liked = 'true'
-      emptyHeart.style.display = 'none'
-      filledHeart.style.display = 'inline-flex'
-      btn.classList.add('text-rose-500', 'dark:text-rose-400')
-      btn.classList.remove(
-        'text-stone-400',
-        'dark:text-stone-600',
-        'hover:text-rose-500',
-        'dark:hover:text-rose-400',
+      wrap?.setAttribute('data-tooltip', '今日已点赞')
+      btn.setAttribute(
+        'aria-label',
+        `为第 ${btn.dataset.thoughtId} 条碎碎念点赞，当前 ${total} 次，今日已点赞`,
       )
     } else {
       btn.dataset.liked = 'false'
-      emptyHeart.style.display = 'inline-flex'
-      filledHeart.style.display = 'none'
-      btn.classList.remove('text-rose-500', 'dark:text-rose-400')
-      btn.classList.add(
-        'text-stone-400',
-        'dark:text-stone-600',
-        'hover:text-rose-500',
-        'dark:hover:text-rose-400',
+      wrap?.setAttribute('data-tooltip', '点击点赞')
+      btn.setAttribute(
+        'aria-label',
+        `为第 ${btn.dataset.thoughtId} 条碎碎念点赞，当前 ${total} 次，点击点赞`,
       )
     }
   }
 
+  // ========== 爱心动画 ==========
   function animateHeart(btn: HTMLElement) {
-    const filledHeart = btn.querySelector(
-      '.thought-heart-filled',
-    ) as HTMLElement
-    if (!filledHeart) return
+    const icon = btn.querySelector('.thought-heart-icon')
+    if (!icon) return
 
-    const svg = filledHeart.querySelector('svg')
-    if (!svg) return
-
-    svg.style.animation = 'none'
-    svg.getBoundingClientRect()
-    svg.style.animation =
+    const element = icon as HTMLElement
+    element.style.animation = 'none'
+    element.getBoundingClientRect()
+    element.style.animation =
       'thought-heart-pop 0.45s cubic-bezier(0.17,0.89,0.32,1.49)'
-    svg.addEventListener(
+    element.addEventListener(
       'animationend',
       () => {
-        svg.style.animation = ''
+        element.style.animation = ''
       },
       { once: true },
     )
   }
 
+  // ========== 加载点赞数据 ==========
   async function loadThoughtLikes() {
     const buttons = document.querySelectorAll(
       '.thought-like-btn',
@@ -427,71 +470,105 @@ thoughts.forEach((thought) => {
         }
       })
     } catch {
-      // ignore
+      // 加载失败静默处理
     }
   }
 
-  let likeInProgress = new Set<string>()
+  // ========== 点赞点击 ==========
+  const likeInProgress = new Set<string>()
 
-  function setupLikeButtons() {
+  function setupLikeButtons(signal: AbortSignal) {
     document.querySelectorAll('.thought-like-btn').forEach((btn) => {
-      btn.addEventListener('click', async (e) => {
-        e.preventDefault()
-        e.stopPropagation()
+      btn.addEventListener(
+        'click',
+        async (e) => {
+          e.preventDefault()
+          e.stopPropagation()
 
-        const button = btn as HTMLElement
-        const thoughtId = button.dataset.thoughtId
-        if (!thoughtId) return
-        if (likeInProgress.has(thoughtId)) return
-        likeInProgress.add(thoughtId)
+          const button = btn as HTMLElement
+          const thoughtId = button.dataset.thoughtId
+          if (!thoughtId) return
 
-        if (button.dataset.liked === 'true') {
-          showBubble(button, '今日已点赞 ❤️', 'liked', 1400)
-          likeInProgress.delete(thoughtId)
-          return
-        }
+          // 防重复点击
+          if (likeInProgress.has(thoughtId)) return
+          likeInProgress.add(thoughtId)
 
-        const countEl = button.querySelector(
-          '.thought-like-count',
-        ) as HTMLElement
-        const currentCount = parseInt(countEl?.textContent || '0') || 0
-        updateLikeButton(button, currentCount + 1, 1)
-        animateHeart(button)
-        showBubble(button, '点赞成功 ❤️', 'thanks', 1600)
-
-        try {
-          const result = await sendLike(thoughtId, 'thought')
-
-          if (result.limited) {
-            updateLikeButton(button, result.total, result.userToday)
-            if (result.limitReason === 'daily_cap') {
-              showBubble(button, '今日点赞已达上限', 'liked', 1600)
-            } else {
-              showBubble(button, '今日已点赞 ❤️', 'liked', 1400)
-            }
-          } else if (result.success) {
-            updateLikeButton(button, result.total, result.userToday)
+          // 该条今日已点过 → 即时气泡提示，不发请求
+          if (button.dataset.liked === 'true') {
+            showBubble(button, '今日已点赞', 'liked', 1400)
+            likeInProgress.delete(thoughtId)
+            return
           }
-        } catch (error) {
-          updateLikeButton(button, currentCount, 0)
-          showBubble(
-            button,
-            error instanceof Error ? error.message : '出错了，稍后再试',
-            'error',
-            1800,
-          )
-        } finally {
-          likeInProgress.delete(thoughtId)
-        }
-      })
+
+          // 乐观更新 UI
+          const countEl = button.querySelector(
+            '.thought-like-count',
+          ) as HTMLElement
+          const currentCount =
+            Number(button.dataset.total || countEl?.textContent || '0') || 0
+          updateLikeButton(button, currentCount + 1, 1)
+          animateHeart(button)
+          // 即时气泡：点赞中
+          showBubble(button, '点赞成功', 'thanks', 1600)
+
+          try {
+            const result = await sendLike(thoughtId, 'thought')
+
+            if (result.limited) {
+              // 回滚乐观更新
+              updateLikeButton(button, result.total, result.userToday)
+              if (result.limitReason === 'daily_cap') {
+                // 今日已点赞 10 条不同的碎碎念
+                showBubble(button, '今日点赞已达上限', 'liked', 1600)
+              } else {
+                // 该条今日已点过
+                showBubble(button, '今日已点赞', 'liked', 1400)
+              }
+            } else if (result.success) {
+              updateLikeButton(button, result.total, result.userToday)
+              // 气泡已在乐观阶段显示，不重复弹
+            }
+          } catch {
+            // 回滚
+            updateLikeButton(button, currentCount, 0)
+            showBubble(button, '出错了，稍后再试', 'error', 1600)
+          } finally {
+            likeInProgress.delete(thoughtId)
+          }
+        },
+        { signal },
+      )
     })
   }
 
+  // ========== 初始化 ==========
   function init() {
-    setupTimeAgo()
-    setupAnchorLinks()
+    setupTimeAgo('.thought-time-ago')
+    thoughtsWindow.__astroDogeThoughtsController?.abort()
+
+    const hasThoughts = document.querySelector(
+      '.thought-anchor, .thought-like-btn',
+    )
+    if (!hasThoughts) return
+
+    const controller = new AbortController()
+    thoughtsWindow.__astroDogeThoughtsController = controller
+    const { signal } = controller
+
+    signal.addEventListener(
+      'abort',
+      () => {
+        if (toastTimer) clearTimeout(toastTimer)
+        bubbleTimers.forEach((timer) => clearTimeout(timer))
+        bubbleTimers.clear()
+        likeInProgress.clear()
+      },
+      { once: true },
+    )
+
+    setupAnchorLinks(signal)
     highlightAnchor()
-    setupLikeButtons()
+    setupLikeButtons(signal)
     loadThoughtLikes()
   }
 
@@ -504,6 +581,106 @@ thoughts.forEach((thought) => {
 </script>
 
 <style>
+  :global(.thought-time-meta) {
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :global(.thought-like-wrap) {
+    line-height: 1.25rem;
+  }
+
+  :global(.thought-bubble) {
+    left: calc(0.627em + 0.125rem);
+  }
+
+  :global(.thought-like-wrap::after) {
+    position: absolute;
+    bottom: calc(100% + 0.375rem);
+    left: calc(0.627em + 0.125rem);
+    z-index: 10;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    background-color: rgb(245, 245, 244);
+    color: rgb(120, 113, 108);
+    content: attr(data-tooltip);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(4px) scale(0.95);
+    transition:
+      opacity 0.15s ease,
+      transform 0.15s ease;
+    white-space: nowrap;
+  }
+
+  :global(.dark .thought-like-wrap::after) {
+    background-color: rgb(41, 37, 36);
+    color: rgb(168, 162, 158);
+  }
+
+  :global(.thought-like-wrap:hover::after),
+  :global(.thought-like-wrap:has(.thought-like-btn:focus-visible)::after) {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  :global(.thought-like-wrap.is-bubbling::after),
+  :global(.thought-like-wrap.is-hover-suppressed::after) {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) scale(0.95);
+  }
+
+  :global(.thought-like-btn) {
+    line-height: 1.25rem;
+    transform-origin: center;
+  }
+
+  :global(.thought-like-btn svg) {
+    display: block;
+  }
+
+  :global(.thought-heart-icon svg) {
+    transition:
+      fill 0.16s ease,
+      stroke 0.16s ease;
+  }
+
+  :global(.thought-like-btn[data-liked='true'] .thought-heart-icon svg) {
+    fill: currentColor;
+  }
+
+  :global(.thought-like-btn[data-liked='true']) {
+    color: rgb(244 63 94);
+  }
+
+  :global(.dark .thought-like-btn[data-liked='true']) {
+    color: rgb(251 113 133);
+  }
+
+  :global(article.thought-entry) {
+    color: var(--ink);
+  }
+
+  :global(article.thought-entry p),
+  :global(article.thought-entry li) {
+    color: inherit;
+  }
+
+  :global(article.thought-entry p:has(> img:only-child)) {
+    line-height: 0;
+  }
+
+  :global(article.thought-entry p:has(> img:only-child) > img) {
+    display: block;
+    max-height: min(52vh, 22.5rem);
+    margin-block: 0 !important;
+    object-fit: contain;
+  }
+
+  /* 高亮动画 */
   .highlight-thought {
     animation: highlightPulse 2s ease-out;
   }
@@ -530,6 +707,7 @@ thoughts.forEach((thought) => {
     }
   }
 
+  /* 碎碎念心跳动画 */
   @keyframes thought-heart-pop {
     0% {
       transform: scale(1);
@@ -548,7 +726,9 @@ thoughts.forEach((thought) => {
     }
   }
 
+  /* 气泡入场：从按钮上方 4px 处浮起，fade in */
   .thought-bubble {
+    transform: translateX(-50%);
     transition:
       opacity 0.15s ease,
       transform 0.15s ease;
@@ -556,17 +736,18 @@ thoughts.forEach((thought) => {
 
   .thought-bubble.bubble-enter {
     opacity: 0;
-    transform: translateY(4px) scale(0.95);
+    transform: translateX(-50%) translateY(4px) scale(0.95);
   }
 
   .thought-bubble.bubble-enter.bubble-visible {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 
+  /* 气泡离场：往上飘走，fade out */
   .thought-bubble.bubble-leave {
     opacity: 0;
-    transform: translateY(-4px) scale(0.95);
+    transform: translateX(-50%) translateY(-4px) scale(0.95);
     transition:
       opacity 0.2s ease,
       transform 0.2s ease;

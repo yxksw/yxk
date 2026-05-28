@@ -1,6 +1,6 @@
 # Deploy To Vercel
 
-这份模板默认是静态站点，但仓库根目录已经带了 `api/` 和 `vercel.json`，所以可以直接部署到 Vercel，开启评论、留言板、碎碎念点赞和 `/thoughts/new` 在线发布。
+这份模板默认是静态站点，但仓库根目录已经带了 `api/` 和 `vercel.json`，所以可以直接部署到 Vercel，开启评论、留言板、碎碎念点赞、`/thoughts/new` 和 `/moments/new` 在线发布。
 
 ## 适合什么场景
 
@@ -19,7 +19,7 @@
 - `LIKES_REPO`
   点赞数据仓库，可选；不配时会回退到 `COMMENTS_REPO`，再回退到 `GITHUB_REPO`
 - `CONTENT_REPO`
-  `/thoughts/new` 在线发布写入的内容仓库
+  `/thoughts/new` 和 `/moments/new` 在线发布写入的内容仓库
 - `GITHUB_REPO`
   通用回退仓库。如果你想最省事，可以只配它
 
@@ -34,7 +34,7 @@
 - `Issues: Read and write`
   评论、留言板、点赞数据需要
 - `Contents: Read and write`
-  `/thoughts/new` 在线发布需要
+  `/thoughts/new` 和 `/moments/new` 在线发布需要
 
 如果评论仓库、点赞仓库、内容仓库不是同一个，记得在 Token 的仓库范围里全部选上。
 
@@ -46,18 +46,19 @@
 | ------------------- | ---- | ---------------------------------------- |
 | `SITE_URL`          | 是   | 线上站点地址，例如 `https://example.com` |
 | `GITHUB_TOKEN`      | 是   | 上一步创建的 Token                       |
-| `THOUGHT_API_TOKEN` | 否   | 只在启用 `/thoughts/new` 时需要          |
+| `THOUGHT_API_TOKEN` | 否   | 只在启用在线发布时需要                   |
 
 按功能补充：
 
-| 功能                   | 变量                                                      |
-| ---------------------- | --------------------------------------------------------- |
-| 评论 / 留言板          | `COMMENTS_REPO` 或 `GITHUB_REPO`                          |
-| 点赞                   | `LIKES_REPO` 或 `COMMENTS_REPO` 或 `GITHUB_REPO`          |
-| 在线发布碎碎念         | `CONTENT_REPO` 或 `GITHUB_REPO`                           |
-| 博主身份校验           | `OWNER_NAME`、`OWNER_EMAIL`、`OWNER_TOKEN`                |
-| 前端提示博主输入 token | `PUBLIC_OWNER_NAME`，以及可选的 `PUBLIC_OWNER_EMAIL`      |
-| 时区与内容目录         | `SITE_TIMEZONE`、`CONTENT_BRANCH`、`THOUGHTS_CONTENT_DIR` |
+| 功能                   | 变量                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| 评论 / 留言板          | `COMMENTS_REPO` 或 `GITHUB_REPO`                                                |
+| 点赞                   | `LIKES_REPO` 或 `COMMENTS_REPO` 或 `GITHUB_REPO`                                |
+| 在线发布碎碎念 / 相册  | `CONTENT_REPO` 或 `GITHUB_REPO`                                                 |
+| 图片上传代理           | `R2_IMAGE_BASE_URL`，仅在启用浏览器直传图片时需要                               |
+| 博主身份校验           | `OWNER_NAME`、`OWNER_EMAIL`、`OWNER_TOKEN`                                      |
+| 前端提示博主输入 token | `PUBLIC_OWNER_NAME`，以及可选的 `PUBLIC_OWNER_EMAIL`                            |
+| 时区与内容目录         | `SITE_TIMEZONE`、`CONTENT_BRANCH`、`THOUGHTS_CONTENT_DIR`、`ALBUMS_CONTENT_DIR` |
 
 如果你想先跑通最小配置，常见做法是：
 
@@ -67,6 +68,7 @@ GITHUB_TOKEN=github_pat_xxxxxxxxxxxxxxxxxxxx
 GITHUB_REPO=yourname/blog-data
 CONTENT_REPO=yourname/your-blog
 THOUGHT_API_TOKEN=replace-this-with-a-random-secret
+ALBUMS_CONTENT_DIR=src/content/albums
 OWNER_NAME=Your Name
 OWNER_EMAIL=you@example.com
 OWNER_TOKEN=replace-this-with-another-secret
@@ -93,6 +95,7 @@ SITE_TIMEZONE=Asia/Shanghai
 - 留言板页面可以正常加载评论区
 - 碎碎念页点赞按钮点击后能更新状态
 - `/thoughts/new` 输入正确 token 后可以创建新文件
+- `/moments/new` 输入正确 token 后可以创建相册条目
 
 ## 常见问题
 
@@ -105,7 +108,7 @@ SITE_TIMEZONE=Asia/Shanghai
 - 仓库格式不是 `owner/repo`
 - Token 没有对应仓库的 `Issues` 写权限
 
-### `/thoughts/new` 提示 token 无效
+### `/thoughts/new` 或 `/moments/new` 提示 token 无效
 
 先确认：
 
@@ -113,6 +116,14 @@ SITE_TIMEZONE=Asia/Shanghai
 - 页面里输入的 token 与环境变量完全一致
 - `CONTENT_REPO` 或 `GITHUB_REPO` 已配置
 - Token 对内容仓库有 `Contents: Read and write`
+
+### `/moments/new` 上传图片失败
+
+先确认：
+
+- `R2_IMAGE_BASE_URL` 指向你自己的上传签名服务
+- 上传服务能处理 `/api/upload/sign` 和 `/api/upload/complete`
+- 页面里输入的 token 与上传服务需要的 token 一致
 
 ### 点赞按钮提示“接口尚未配置完成”
 
@@ -126,4 +137,6 @@ SITE_TIMEZONE=Asia/Shanghai
 
 可以。
 
-如果你只是想保留前端页面，把动态能力接到你自己的服务上，直接按 [API Contract](./api-contract.md) 实现相同接口即可。
+如果你只需要文章、碎碎念、相册、搜索、RSS、PWA 等静态能力，直接运行 `bun run build`，把 `dist/` 部署到 Netlify、Cloudflare Pages、GitHub Pages 或自己的静态服务器即可。
+
+如果你还想保留评论、留言板、点赞、在线发布和图片上传代理，需要额外准备后端接口。仓库根目录的 `api/*.ts` 是 Vercel Serverless API 写法，其他平台通常不能直接原样运行。你可以按 [API Contract](./api-contract.md) 在 Netlify Functions、Cloudflare Workers、Node.js 服务或其他 Serverless 平台实现同样接口。

@@ -3,105 +3,207 @@ import Container from '@components/Container.astro'
 import Link from '@components/Link.astro'
 import { ABOUT, PROJECTS, SITE, SOCIALS, TECH_STACK } from '@consts'
 import PageLayout from '@layouts/PageLayout.astro'
+
+const profileNotes = [
+  { label: '现在身份', value: '你的身份 / 职业 / 角色' },
+  { label: '正在学习', value: 'Astro / TypeScript / 写作' },
+  { label: '正在折腾', value: '个人网站和一些小项目' },
+]
+
+const profileTagText =
+  '写作 / 编程 / 阅读 / 摄影 / 独立开发 / 开源 / 生活记录 / 好奇心 / 长期主义'
 ---
 
 <PageLayout title={ABOUT.TITLE} description={ABOUT.DESCRIPTION}>
-  <Container>
-    <div class="space-y-4">
-      <h1
-        class="animate text-3xl font-semibold text-stone-900 dark:text-stone-100"
-      >
-        Your Name
-      </h1>
-      <p class="animate mb-8 text-stone-600 dark:text-stone-400">
-        一句话介绍自己
-      </p>
-    </div>
+  <Container class="!max-w-3xl">
+    <div class="space-y-12">
+      <section class="pb-4">
+        <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <div>
+            <div class="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <img
+                src="/avatar.png"
+                alt="Your Name"
+                class="h-20 w-20 rounded-xl border border-stone-200/70 object-cover dark:border-stone-800"
+                width="80"
+                height="80"
+                loading="eager"
+                decoding="async"
+              />
+              <div>
+                <h1
+                  class="text-3xl font-semibold text-stone-950 sm:text-4xl dark:text-stone-50"
+                >
+                  Your Name
+                </h1>
+                <p class="mt-2 text-stone-600 dark:text-stone-400">
+                  一句话介绍你自己。
+                </p>
+              </div>
+            </div>
 
-    <div class="space-y-8 sm:space-y-10">
-      <!-- 个人介绍 -->
-      <section class="animate">
-        <h2
-          class="mb-3 flex items-center gap-2 text-base font-semibold text-stone-900 sm:mb-4 sm:text-lg dark:text-stone-100"
-        >
-          Profile
-        </h2>
-        <div
-          class="space-y-4 text-sm text-stone-700 sm:text-base dark:text-stone-300"
-        >
-          <p>这里是你的个人介绍。可以写写你是谁、在做什么、对什么感兴趣。</p>
-          <p>
-            Astro Doge
-            默认提供文章、碎碎念、友链等页面；评论、留言板、点赞和网页端发布都可以按
-            README 或 <code>docs/deploy-vercel.md</code> 中的说明按需开启。你可以在
-            <code>src/pages/about/index.astro</code> 中修改这段内容。
+            <div
+              class="mt-7 max-w-2xl space-y-5 leading-8 text-stone-700 dark:text-stone-300"
+            >
+              <p>
+                你好！这里可以写你的个人介绍：你是谁、在做什么、为什么开始写博客，以及你希望这个站点记录什么。
+              </p>
+              <p>
+                Astro Doge 默认提供文章、碎碎念、相册、友链、留言板、搜索、RSS
+                和 PWA。评论、点赞、网页端发布等动态能力可以按 README
+                里的说明部署到 Vercel 后启用。
+              </p>
+            </div>
+          </div>
+
+          <div
+            class="divide-y divide-stone-200/70 border-t border-b border-stone-200/70 lg:border-t-0 dark:divide-stone-800 dark:border-stone-800"
+          >
+            {
+              profileNotes.map((item) => (
+                <div class="py-4">
+                  <p class="text-sm text-stone-500 dark:text-stone-400">
+                    {item.label}
+                  </p>
+                  <p class="mt-1 text-base font-medium text-stone-900 dark:text-stone-100">
+                    {item.value}
+                  </p>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="pb-4">
+        <div class="mb-5 flex items-end justify-between gap-4">
+          <div>
+            <h2
+              class="text-lg font-semibold text-stone-900 dark:text-stone-100"
+            >
+              标签和一点自述
+            </h2>
+          </div>
+          <p class="hidden text-sm text-stone-500 sm:block dark:text-stone-400">
+            因为热爱，所以热爱。
           </p>
         </div>
-      </section>
 
-      <!-- 联系方式 -->
-      <section class="animate">
-        <h2
-          class="mb-3 flex items-center gap-2 text-base font-semibold text-stone-900 sm:mb-4 sm:text-lg dark:text-stone-100"
-        >
-          Contact
-        </h2>
-        <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
-          {
-            SOCIALS.map((social) => (
-              <Link
-                href={social.HREF}
-                external
-                class="text-stone-600 transition-colors hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
-              >
-                {social.NAME}
-              </Link>
-            ))
-          }
-          <Link
-            href={`mailto:${SITE.EMAIL}`}
-            class="text-stone-600 transition-colors hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+        <div class="space-y-6">
+          <p
+            class="text-xs leading-7 text-stone-500 sm:text-sm dark:text-stone-400"
           >
-            {SITE.EMAIL}
-          </Link>
+            <span class="font-medium text-stone-600 dark:text-stone-300">
+              标签：
+            </span>
+            {profileTagText}
+          </p>
+
+          <div
+            class="space-y-5 text-sm leading-8 text-stone-700 sm:text-base dark:text-stone-300"
+          >
+            <p>
+              爱好：
+              <mark>代码</mark>、<mark>写作</mark>、<mark>阅读</mark>、<mark>
+                摄影
+              </mark>
+              、以及所有能让生活更有意思的小事。
+            </p>
+            <p>
+              你可以在 <code>src/pages/about/index.astro</code> 中修改这一页。
+            </p>
+          </div>
         </div>
       </section>
 
-      <!-- 项目 -->
-      <section class="animate">
-        <h2
-          class="mb-3 flex items-center gap-2 text-base font-semibold text-stone-900 sm:mb-4 sm:text-lg dark:text-stone-100"
+      <section class="grid gap-10 pb-4 lg:grid-cols-[0.8fr_1.2fr]">
+        <div>
+          <h2 class="text-lg font-semibold text-stone-900 dark:text-stone-100">
+            联系
+          </h2>
+          <div class="mt-5 flex flex-wrap gap-x-4 gap-y-3 text-sm">
+            {
+              SOCIALS.map((social) => (
+                <Link
+                  href={social.HREF}
+                  external
+                  class="text-stone-600 transition-colors hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+                >
+                  {social.NAME}
+                </Link>
+              ))
+            }
+            <Link href={`mailto:${SITE.EMAIL}`}>{SITE.EMAIL}</Link>
+          </div>
+        </div>
+
+        <div>
+          <h2 class="text-lg font-semibold text-stone-900 dark:text-stone-100">
+            技术栈
+          </h2>
+          <div class="mt-5 space-y-4">
+            {
+              TECH_STACK.map((group) => (
+                <div class="grid gap-2 sm:grid-cols-[72px_minmax(0,1fr)]">
+                  <h3 class="text-xs font-medium tracking-wide text-stone-500 uppercase dark:text-stone-400">
+                    {group.category}
+                  </h3>
+                  <div class="flex flex-wrap gap-x-3 gap-y-2 text-sm">
+                    {group.items.map((tech) => (
+                      <Link
+                        href={tech.href}
+                        external
+                        class="text-stone-700 dark:text-stone-300"
+                      >
+                        {tech.name}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="mb-5 flex items-baseline justify-between gap-3">
+          <h2 class="text-lg font-semibold text-stone-900 dark:text-stone-100">
+            项目
+          </h2>
+          <Link
+            href="https://github.com/username?tab=repositories"
+            external
+            class="text-sm text-stone-500"
+          >
+            探索更多
+          </Link>
+        </div>
+        <div
+          class="grid gap-8 border-t border-stone-200/70 pt-5 lg:grid-cols-2 dark:border-stone-800"
         >
-          Projects
-        </h2>
-        <div class="space-y-6">
           {
             PROJECTS.map((group) => (
-              <div class="space-y-2">
-                <h3 class="text-xs font-medium tracking-wider text-stone-500 uppercase dark:text-stone-400">
+              <div>
+                <h3 class="mb-3 text-xs font-medium tracking-wide text-stone-500 uppercase dark:text-stone-400">
                   {group.category}
                 </h3>
-                <ul class="space-y-2">
+                <ul class="divide-y divide-stone-200/70 dark:divide-stone-800">
                   {group.items.map((project) => (
-                    <li class="text-sm text-stone-700 dark:text-stone-300">
-                      <div class="inline-flex flex-wrap items-baseline gap-2">
+                    <li class="py-3 text-sm leading-relaxed">
+                      <div class="flex flex-wrap items-baseline gap-2">
                         <Link
                           href={project.href}
                           external
-                          class="font-medium text-stone-900 hover:text-stone-600 dark:text-stone-100 dark:hover:text-stone-400"
+                          class="font-medium text-stone-900 dark:text-stone-100"
                         >
                           {project.name}
                         </Link>
-                        {project.stars && (
-                          <span class="text-xs text-stone-400 dark:text-stone-500">
-                            {project.stars}
-                          </span>
-                        )}
                         {project.homepage && (
                           <Link
                             href={project.homepage}
                             external
-                            class="text-xs text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-400"
+                            class="text-xs text-stone-400"
                           >
                             主页
                           </Link>
@@ -111,54 +213,10 @@ import PageLayout from '@layouts/PageLayout.astro'
                             {project.badge}
                           </span>
                         )}
-                        <span class="text-stone-400 dark:text-stone-500">
-                          — {project.description}
-                        </span>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))
-          }
-          <Link
-            href="https://github.com/username?tab=repositories"
-            external
-            class="inline-block text-sm text-stone-500 transition-colors hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
-          >
-            探索更多
-          </Link>
-        </div>
-      </section>
-
-      <!-- 技术栈 -->
-      <section class="animate">
-        <h2
-          class="mb-3 flex items-center gap-2 text-base font-semibold text-stone-900 sm:mb-4 sm:text-lg dark:text-stone-100"
-        >
-          Tech
-        </h2>
-        <div class="space-y-6">
-          {
-            TECH_STACK.map((group) => (
-              <div class="space-y-2">
-                <h3 class="text-xs font-medium tracking-wider text-stone-500 uppercase dark:text-stone-400">
-                  {group.category}
-                </h3>
-                <ul class="space-y-2">
-                  {group.items.map((tech) => (
-                    <li class="text-sm text-stone-700 dark:text-stone-300">
-                      <Link
-                        href={tech.href}
-                        external
-                        class="font-medium text-stone-900 dark:text-stone-100"
-                      >
-                        {tech.name}
-                      </Link>
-                      <span class="text-stone-400 dark:text-stone-500">
-                        {' '}
-                        — {tech.description}
-                      </span>
+                      <p class="mt-1 text-stone-500 dark:text-stone-400">
+                        {project.description}
+                      </p>
                     </li>
                   ))}
                 </ul>

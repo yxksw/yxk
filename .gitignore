@@ -22,3 +22,7 @@ pnpm-debug.log*
 .DS_Store
 
 .vercel
+
+# local visual QA artifacts
+.playwright-cli/
+output/

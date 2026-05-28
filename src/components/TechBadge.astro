@@ -1,0 +1,49 @@
+---
+type Props = {
+  name: string
+  icon?: string
+  href?: string
+}
+
+const { name, icon, href } = Astro.props
+
+const badgeClasses =
+  'my-0 inline-flex items-center rounded-md border border-stone-200/80 bg-stone-50/70 px-2.5 py-1.5 text-xs leading-4 text-stone-700 no-underline transition-colors duration-200 dark:border-stone-800 dark:bg-stone-900/70 dark:text-stone-300 gap-1.5'
+
+const hoverClasses =
+  'hover:border-stone-300 hover:bg-stone-100/70 dark:hover:border-stone-700 dark:hover:bg-stone-800/70'
+---
+
+{
+  href ? (
+    <a href={href} target="_blank" class={`${badgeClasses} ${hoverClasses}`}>
+      {icon && (
+        <img
+          alt={`${name} Logo`}
+          loading="lazy"
+          width="14"
+          height="14"
+          decoding="async"
+          class="pointer-events-none"
+          src={icon}
+          style="color: transparent;"
+        />
+      )}
+      {name}
+    </a>
+  ) : (
+    <span class={badgeClasses}>
+      <img
+        alt={`${name} Logo`}
+        loading="lazy"
+        width="14"
+        height="14"
+        decoding="async"
+        class="pointer-events-none"
+        src={icon}
+        style="color: transparent;"
+      />
+      {name}
+    </span>
+  )
+}

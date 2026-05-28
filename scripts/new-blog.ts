@@ -112,7 +112,7 @@ title: ${slug}
 description: ${slug}
 date: ${dateStr}
 slug: ${slug}
-draft: false
+draft: true
 ---
 
 开始编写内容～

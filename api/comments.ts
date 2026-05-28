@@ -10,11 +10,15 @@ import {
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN
 const SITE_URL = getSiteUrl()
+const COMMENT_AUTHOR_LOGIN = process.env.COMMENT_AUTHOR_LOGIN?.trim()
 
 interface GitHubComment {
   id: number
   body: string
   created_at: string
+  user?: {
+    login: string
+  }
 }
 
 interface ParsedComment {
@@ -27,6 +31,7 @@ interface ParsedComment {
   userAgent?: string
   replyTo?: { id: number; name: string }
   isOwner?: boolean
+  featured?: boolean
   replies?: ParsedComment[]
 }
 
@@ -89,6 +94,7 @@ function parseComment(comment: GitHubComment): ParsedComment | null {
           }
         : undefined,
       isOwner: meta.is_owner === 'true',
+      featured: meta.featured === 'true',
     }
   } catch {
     return null
@@ -142,14 +148,24 @@ async function fetchComments(slug: string): Promise<ParsedComment[]> {
   if (data.total_count === 0) return []
 
   const issueNumber = data.items[0].number
-  const comments = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=100`,
-    { headers: githubHeaders() },
-  )
-  if (!comments.ok) throw new Error('Failed to fetch comments')
+  const list: GitHubComment[] = []
 
-  const list: GitHubComment[] = await comments.json()
-  const parsed = list
+  for (let page = 1; page <= 10; page += 1) {
+    const comments = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
+      { headers: githubHeaders() },
+    )
+    if (!comments.ok) throw new Error('Failed to fetch comments')
+
+    const pageItems = (await comments.json()) as GitHubComment[]
+    list.push(...pageItems)
+    if (pageItems.length < 100) break
+  }
+
+  const visibleComments = COMMENT_AUTHOR_LOGIN
+    ? list.filter((comment) => comment.user?.login === COMMENT_AUTHOR_LOGIN)
+    : list
+  const parsed = visibleComments
     .map(parseComment)
     .filter((item): item is ParsedComment => !!item)
   return buildTree(parsed)

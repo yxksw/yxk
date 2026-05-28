@@ -1,33 +1,38 @@
 ---
 // 自定义评论组件
-// 使用 GitHub Issues 存储，支持头像、表情、Markdown 和剧透语法
+// 使用 GitHub Issues 存储，支持 Gravatar 头像、表情、Markdown 和剧透语法
 // 现代化卡片式设计
 
 interface Props {
   slug: string
   title: string
+  variant?: 'default' | 'guestbook'
 }
 
-// 导入表情配置
-import emojisConfig from '@data/emojis.json'
-
-const { slug, title } = Astro.props
+const { slug, title, variant = 'default' } = Astro.props
+const isGuestbook = variant === 'guestbook'
 const publicOwnerName = import.meta.env.PUBLIC_OWNER_NAME || ''
 const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
 ---
 
 <section
-  class="comments-section"
+  class:list={[
+    'comments-section',
+    isGuestbook && 'comments-section--guestbook',
+  ]}
   data-slug={slug}
   data-title={title}
-  data-emojis={JSON.stringify(emojisConfig)}
   data-owner-name={publicOwnerName}
   data-owner-email={publicOwnerEmail}
 >
   <!-- 评论表单 -->
   <form
     id="comment-form"
-    class="rounded-lg border border-stone-200 p-4 dark:border-stone-700"
+    class:list={[
+      isGuestbook
+        ? 'border-y border-stone-200/70 py-4 dark:border-stone-800'
+        : 'rounded-lg border border-stone-200 p-4 dark:border-stone-700',
+    ]}
   >
     <input
       type="text"
@@ -212,7 +217,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
   </form>
 
   <!-- 评论列表 -->
-  <div id="comments-container" class="mt-12 sm:mt-16">
+  <div id="comments-container" class={isGuestbook ? 'mt-10' : 'mt-12 sm:mt-16'}>
     <h2
       id="comments-count"
       class="mb-6 hidden font-medium text-stone-900 sm:text-lg dark:text-stone-100"
@@ -270,9 +275,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
             stroke-linejoin="round"
             d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        <span
-          id="comments-error-message"
-          class="flex-1 text-sm text-stone-600 dark:text-stone-400"
+        <span class="flex-1 text-sm text-stone-600 dark:text-stone-400"
           >加载评论时出错了</span
         >
         <button
@@ -299,6 +302,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       name: string
     }
     isOwner?: boolean
+    featured?: boolean
     replies?: Comment[]
     isPending?: boolean // 标记为待确认的本地评论
   }
@@ -315,6 +319,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
     replyToName?: string
     submittedAt: number // 提交时间戳
     isOwner?: boolean
+    featured?: boolean
     userAgent?: string
   }
 
@@ -330,6 +335,27 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
 
   type EmojisConfig = Record<string, EmojiPack>
 
+  let emojisConfigPromise: Promise<EmojisConfig> | null = null
+
+  interface CommentsWindow extends Window {
+    __astroDogeCommentsController?: AbortController
+  }
+
+  const commentsWindow = window as CommentsWindow
+
+  function loadEmojisConfig(): Promise<EmojisConfig> {
+    if (!emojisConfigPromise) {
+      emojisConfigPromise = fetch('/emojis.json')
+        .then((response) => (response.ok ? response.json() : {}))
+        .catch((error) => {
+          console.error('Failed to load emojis:', error)
+          return {}
+        })
+    }
+
+    return emojisConfigPromise
+  }
+
   const STORAGE_KEY = 'blog-comment-user'
   const GRAVATAR_DEBOUNCE = 800
 
@@ -337,6 +363,21 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
     name: string
     email: string
     website?: string
+  }
+
+  interface CommentPayload {
+    slug?: string
+    title?: string
+    name: string
+    email?: string
+    website?: string
+    content: string
+    replyToId?: string
+    replyToName?: string
+    isOwner?: boolean
+    ownerToken?: string
+    userAgent?: string
+    _gotcha?: string
   }
 
   // ============================================================
@@ -413,6 +454,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
           }
         : undefined,
       isOwner: pending.isOwner,
+      featured: pending.featured,
       isPending: true,
     }
   }
@@ -548,7 +590,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
     return html
   }
 
-  // MD5 实现（用于头像服务）
+  // MD5 实现（简化版，用于 Gravatar）
   function md5(string: string): string {
     function rotateLeft(value: number, shift: number): number {
       return (value << shift) | (value >>> (32 - shift))
@@ -641,7 +683,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       const temp2 = (temp1 - (temp1 % 64)) / 64
       const numberOfWords = (temp2 + 1) * 16
       const wordArray: number[] = new Array(numberOfWords - 1)
-      let bytePosition = 0
+      let bytePosition: number
       let byteCount = 0
       while (byteCount < messageLength) {
         wordCount = (byteCount - (byteCount % 4)) / 4
@@ -773,17 +815,38 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
     ).toLowerCase()
   }
 
-  function initComments() {
+  async function initComments() {
     const section = document.querySelector('.comments-section') as HTMLElement
-    if (!section) return
+    if (!section) {
+      commentsWindow.__astroDogeCommentsController?.abort()
+      commentsWindow.__astroDogeCommentsController = undefined
+      return
+    }
+
+    if (section.dataset.commentsBound === 'true') return
+
+    commentsWindow.__astroDogeCommentsController?.abort()
+    const controller = new AbortController()
+    const { signal } = controller
+    commentsWindow.__astroDogeCommentsController = controller
+    section.dataset.commentsBound = 'true'
 
     const slug = section.dataset.slug
     const title = section.dataset.title
     const ownerName = section.dataset.ownerName || ''
     const ownerEmail = section.dataset.ownerEmail || ''
-    const emojisConfig: EmojisConfig = JSON.parse(
-      section.dataset.emojis || '{}',
+    let avatarDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+    signal.addEventListener(
+      'abort',
+      () => {
+        if (avatarDebounceTimer) clearTimeout(avatarDebounceTimer)
+      },
+      { once: true },
     )
+
+    const emojisConfig = await loadEmojisConfig()
+    if (signal.aborted) return
 
     const form = document.getElementById('comment-form') as HTMLFormElement
 
@@ -814,9 +877,6 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
     const commentsError = document.getElementById(
       'comments-error',
     ) as HTMLElement
-    const commentsErrorMessage = document.getElementById(
-      'comments-error-message',
-    ) as HTMLElement
     const commentsCount = document.getElementById(
       'comments-count',
     ) as HTMLElement
@@ -840,7 +900,6 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
     const emojiContent = document.getElementById('emoji-content') as HTMLElement
 
     const packNames = Object.keys(emojisConfig)
-    let avatarDebounceTimer: ReturnType<typeof setTimeout> | null = null
     let currentEmojiTarget: HTMLTextAreaElement | null = null
 
     // 更新头像预览（带防抖）
@@ -864,7 +923,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       }, GRAVATAR_DEBOUNCE)
     }
 
-    emailInput?.addEventListener('input', updateAvatarPreview)
+    emailInput?.addEventListener('input', updateAvatarPreview, { signal })
 
     // 初始化表情选择器
     function initEmojiPicker() {
@@ -886,19 +945,23 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
         renderEmojiPack(packNames[0])
       }
 
-      emojiTabs.addEventListener('click', (e) => {
-        const tab = (e.target as HTMLElement).closest(
-          '[data-pack]',
-        ) as HTMLElement
-        if (tab) {
-          const packKey = tab.dataset.pack || ''
-          emojiTabs.querySelectorAll('button').forEach((t) => {
-            const isActive = t.getAttribute('data-pack') === packKey
-            t.className = `rounded px-2 py-1 text-xs text-nowrap transition ${isActive ? 'bg-stone-100 text-stone-900 dark:bg-stone-700 dark:text-stone-100' : 'text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800'}`
-          })
-          renderEmojiPack(packKey)
-        }
-      })
+      emojiTabs.addEventListener(
+        'click',
+        (e) => {
+          const tab = (e.target as HTMLElement).closest(
+            '[data-pack]',
+          ) as HTMLElement
+          if (tab) {
+            const packKey = tab.dataset.pack || ''
+            emojiTabs.querySelectorAll('button').forEach((t) => {
+              const isActive = t.getAttribute('data-pack') === packKey
+              t.className = `rounded px-2 py-1 text-xs text-nowrap transition ${isActive ? 'bg-stone-100 text-stone-900 dark:bg-stone-700 dark:text-stone-100' : 'text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-stone-800'}`
+            })
+            renderEmojiPack(packKey)
+          }
+        },
+        { signal },
+      )
     }
 
     function renderEmojiPack(packKey: string) {
@@ -908,19 +971,17 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       const isImage = pack.type === 'image'
       const size = pack.size || 24
 
-      let html = ''
-      if (isImage) {
-        const cols = size >= 60 ? 4 : size >= 40 ? 6 : 8
-        html = `<div class="grid gap-1" style="grid-template-columns: repeat(${cols}, minmax(0, 1fr));">`
-      } else {
-        html = `<div class="flex flex-wrap gap-1">`
-      }
+      const htmlPrefix = isImage
+        ? `<div class="grid gap-1" style="grid-template-columns: repeat(${size >= 60 ? 4 : size >= 40 ? 6 : 8}, minmax(0, 1fr));">`
+        : `<div class="flex flex-wrap gap-1">`
 
-      html += Object.entries(pack.items)
-        .map(([name, value]) => {
-          const emojiCode = `:${packKey}_${name}:`
-          if (isImage) {
-            return `
+      let html =
+        htmlPrefix +
+        Object.entries(pack.items)
+          .map(([name, value]) => {
+            const emojiCode = `:${packKey}_${name}:`
+            if (isImage) {
+              return `
             <button type="button" data-emoji="${emojiCode}" title="${name}"
               class="flex items-center justify-center rounded p-1 transition-all hover:bg-stone-100 active:scale-95 dark:hover:bg-stone-700">
               <img alt="${name}" loading="lazy"
@@ -928,71 +989,83 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
                 src="${value}" style="width:${size}px;height:${size}px;" />
             </button>
           `
-          } else {
-            // 颜文字样式优化
-            return `
+            } else {
+              // 颜文字样式优化
+              return `
             <button type="button" data-emoji="${value}" title="${name}"
               class="rounded px-2 py-1 text-sm transition-colors hover:bg-stone-100 dark:hover:bg-stone-700">
               ${value}
             </button>
           `
-          }
-        })
-        .join('')
+            }
+          })
+          .join('')
 
       html += `</div>`
       emojiContent.innerHTML = html
     }
 
-    emojiContent?.addEventListener('click', (e) => {
-      const item = (e.target as HTMLElement).closest(
-        '[data-emoji]',
-      ) as HTMLElement
-      const target = currentEmojiTarget || contentTextarea
+    emojiContent?.addEventListener(
+      'click',
+      (e) => {
+        const item = (e.target as HTMLElement).closest(
+          '[data-emoji]',
+        ) as HTMLElement
+        const target = currentEmojiTarget || contentTextarea
 
-      if (item && target) {
-        const emoji = item.dataset.emoji || ''
-        const start = target.selectionStart
-        const end = target.selectionEnd
-        const text = target.value
-        target.value = text.substring(0, start) + emoji + text.substring(end)
-        target.selectionStart = target.selectionEnd = start + emoji.length
-        target.focus()
+        if (item && target) {
+          const emoji = item.dataset.emoji || ''
+          const start = target.selectionStart
+          const end = target.selectionEnd
+          const text = target.value
+          target.value = text.substring(0, start) + emoji + text.substring(end)
+          target.selectionStart = target.selectionEnd = start + emoji.length
+          target.focus()
 
-        // 如果是主评论框，更新字数统计
-        if (target === contentTextarea) {
-          charCount.textContent = String(target.value.length)
+          // 如果是主评论框，更新字数统计
+          if (target === contentTextarea) {
+            charCount.textContent = String(target.value.length)
+          }
+
+          emojiPicker?.classList.add('hidden')
         }
+      },
+      { signal },
+    )
 
-        emojiPicker?.classList.add('hidden')
-      }
-    })
+    emojiBtn?.addEventListener(
+      'click',
+      (e) => {
+        e.stopPropagation()
+        currentEmojiTarget = contentTextarea
 
-    emojiBtn?.addEventListener('click', (e) => {
-      e.stopPropagation()
-      currentEmojiTarget = contentTextarea
-
-      const container = emojiBtn.parentElement
-      if (container) {
-        if (!container.contains(emojiPicker)) {
-          container.appendChild(emojiPicker)
-          emojiPicker?.classList.remove('hidden')
-        } else {
-          emojiPicker?.classList.toggle('hidden')
+        const container = emojiBtn.parentElement
+        if (container) {
+          if (!container.contains(emojiPicker)) {
+            container.appendChild(emojiPicker)
+            emojiPicker?.classList.remove('hidden')
+          } else {
+            emojiPicker?.classList.toggle('hidden')
+          }
         }
-      }
-    })
+      },
+      { signal },
+    )
 
-    document.addEventListener('click', (e) => {
-      if (
-        emojiPicker &&
-        !emojiPicker.contains(e.target as Node) &&
-        e.target !== emojiBtn &&
-        !emojiBtn?.contains(e.target as Node)
-      ) {
-        emojiPicker.classList.add('hidden')
-      }
-    })
+    document.addEventListener(
+      'click',
+      (e) => {
+        if (
+          emojiPicker &&
+          !emojiPicker.contains(e.target as Node) &&
+          e.target !== emojiBtn &&
+          !emojiBtn?.contains(e.target as Node)
+        ) {
+          emojiPicker.classList.add('hidden')
+        }
+      },
+      { signal },
+    )
 
     initEmojiPicker()
 
@@ -1016,14 +1089,40 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
 
     loadSavedUserInfo()
 
-    contentTextarea?.addEventListener('input', () => {
-      const count = contentTextarea.value.length
-      charCount.textContent = String(count)
-    })
+    contentTextarea?.addEventListener(
+      'input',
+      () => {
+        const count = contentTextarea.value.length
+        charCount.textContent = String(count)
+      },
+      { signal },
+    )
+
+    function escapeHtml(text: string) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+    }
+
+    function getSuccessMessage(isReply: boolean) {
+      if (slug === 'messages') {
+        return isReply
+          ? '收到啦，已经接上这段聊天。同步需要半分钟。'
+          : '收到啦，欢迎来这里串门。同步需要半分钟。'
+      }
+
+      return isReply
+        ? '回复已收到，正在同步到评论区。'
+        : '评论已收到，正在同步到评论区。'
+    }
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
       const toast = document.createElement('div')
       toast.className = `transform transition-all duration-300 ease-out translate-y-full opacity-0 flex items-center gap-2 rounded-lg border border-stone-200 bg-white px-4 py-3 text-sm font-medium text-stone-900 shadow-xl dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100`
+      const safeMessage = escapeHtml(message)
 
       toast.innerHTML = `
         ${
@@ -1031,7 +1130,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
             ? '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>'
             : '<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>'
         }
-        <span>${message}</span>
+        <span>${safeMessage}</span>
       `
       toastContainer.appendChild(toast)
 
@@ -1047,16 +1146,6 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
           toast.remove()
         }, 300)
       }, 3000)
-    }
-
-    function showCommentsError(message: string, retryable = true) {
-      commentsLoading.classList.add('hidden')
-      commentsList.classList.add('hidden')
-      commentsEmpty.classList.add('hidden')
-      commentsCount.classList.add('hidden')
-      commentsError.classList.remove('hidden')
-      commentsErrorMessage.textContent = message
-      retryBtn.classList.toggle('hidden', !retryable)
     }
 
     // 获取用户信息（优先从 localStorage，其次从主表单）
@@ -1278,11 +1367,20 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
 
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const day = String(date.getDate()).padStart(2, '0')
+      const hour = String(date.getHours()).padStart(2, '0')
+      const minute = String(date.getMinutes()).padStart(2, '0')
+      const time = `${hour}:${minute}`
 
       if (date.getFullYear() === now.getFullYear()) {
-        return `${month}月${day}日`
+        return `${month}月${day}日 ${time}`
       }
-      return `${date.getFullYear()}年${month}月${day}日`
+      return `${date.getFullYear()}年${month}月${day}日 ${time}`
+    }
+
+    function getOwnerAvatarMark(isOwner?: boolean): string {
+      return isOwner
+        ? '<span class="comment-owner-mark" title="博主标识" aria-label="博主标识"></span>'
+        : ''
     }
 
     // 渲染单条评论
@@ -1295,6 +1393,13 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       const ownerBadge = comment.isOwner
         ? `<span class="bg-stone-100 text-stone-700 rounded px-1 py-px text-[10px] dark:bg-stone-800 dark:text-stone-300">博主</span>`
         : ''
+      const featuredMark = comment.featured
+        ? `<span class="comment-featured-mark" title="精选留言" aria-label="精选留言">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m12 3.75 2.45 4.96 5.47.8-3.96 3.86.93 5.45L12 16.25l-4.89 2.57.93-5.45-3.96-3.86 5.47-.8L12 3.75z"></path>
+            </svg>
+          </span>`
+        : ''
 
       const nameHtml = comment.website
         ? `<a href="${comment.website}" target="_blank" rel="noopener noreferrer" class="font-medium text-stone-900 underline decoration-dotted underline-offset-2 hover:decoration-solid ${nameSize} dark:text-stone-100">${comment.name}</a>`
@@ -1306,7 +1411,8 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
         : ''
 
       const contentHtml = parseMarkdown(comment.content, emojisConfig)
-      const lineClamp = isReply ? 'line-clamp-3' : 'line-clamp-7'
+      // const lineClamp = isReply ? 'line-clamp-3' : 'line-clamp-7'
+      const lineClamp = isReply ? '' : 'line-clamp-7'
 
       // 渲染子回复 - 后端已按时间正序排序（最早的在前），前端直接使用
       const repliesHtml =
@@ -1321,8 +1427,9 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
                     <div class="flex items-center gap-3">
                       <div class="relative shrink-0">
                         <img alt="${reply.name}" referrerpolicy="no-referrer" loading="lazy" width="28" height="28"
-                          class="rounded-full object-cover h-7 w-7"
+                          class="comment-avatar rounded-full object-cover h-7 w-7"
                           src="${reply.avatar}" />
+                        ${getOwnerAvatarMark(reply.isOwner)}
                       </div>
                       <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
@@ -1343,7 +1450,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
                       </div>
                     </div>
                   </div>
-                  <div class="message-content prose prose-sm max-w-none line-clamp-3 dark:prose-invert">
+                  <div class="message-content prose prose-sm max-w-none dark:prose-invert">
                     ${parseMarkdown(reply.content, emojisConfig)}
                   </div>
                 </div>
@@ -1364,8 +1471,9 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
               <div class="flex items-center gap-3">
                 <div class="relative shrink-0">
                   <img alt="${comment.name}" referrerpolicy="no-referrer" loading="lazy" width="28" height="28"
-                    class="rounded-full object-cover ${avatarSize}"
+                    class="comment-avatar rounded-full object-cover ${avatarSize}"
                     src="${comment.avatar}" />
+                  ${getOwnerAvatarMark(comment.isOwner)}
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
@@ -1390,13 +1498,15 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       }
 
       return `
-        <article class="group rounded-lg border border-stone-200 p-4 transition dark:border-stone-700" data-id="${comment.id}" data-name="${comment.name}"${comment.isPending ? ' data-pending="true"' : ''}>
-          <div class="mb-3">
+        <article class="comment-card group relative rounded-lg border p-4 transition" data-id="${comment.id}" data-name="${comment.name}"${comment.isPending ? ' data-pending="true"' : ''}>
+          ${featuredMark}
+          <div class="mb-3 ${comment.featured ? 'pr-8' : ''}">
             <div class="flex items-center gap-3">
               <div class="relative shrink-0">
                 <img alt="${comment.name}" referrerpolicy="no-referrer" loading="lazy" width="36" height="36"
-                  class="rounded-full object-cover ${avatarSize}"
+                  class="comment-avatar rounded-full object-cover ${avatarSize}"
                   src="${comment.avatar}" />
+                ${getOwnerAvatarMark(comment.isOwner)}
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
@@ -1455,6 +1565,209 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       `
     }
 
+    function isLocalDevHost(): boolean {
+      return (
+        location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+      )
+    }
+
+    function getMockComments(currentSlug: string): Comment[] {
+      const hoursAgo = (hours: number) =>
+        new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
+      const isMessages = currentSlug === 'messages'
+
+      return [
+        {
+          id: 990002,
+          name: 'Viki',
+          avatar: 'https://weavatar.com/avatar/?d=identicon&s=80',
+          website: 'https://blog.viki.moe',
+          content: isMessages
+            ? '这是本地开发模式的模拟留言，用来检查留言板卡片和回复展开后的样式。'
+            : '这是本地开发模式的模拟文章评论，用来检查文章评论区样式。',
+          createdAt: hoursAgo(2),
+          featured: true,
+          userAgent:
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+          replies: [
+            {
+              id: 990003,
+              name: ownerName || 'Site Owner',
+              avatar: '/avatar.png',
+              website: 'https://example.com',
+              content:
+                '回复区域保持小头像、左边线和缩进，不会变成第二张大卡片。',
+              createdAt: hoursAgo(1),
+              replyTo: { id: 990002, name: 'Viki' },
+              isOwner: true,
+              userAgent:
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+            },
+            {
+              id: 990007,
+              name: '青柠',
+              avatar:
+                'https://weavatar.com/avatar/7c6a180b36896a0a8c02787eeafb0e4c?d=identicon&s=80',
+              content:
+                '这个缩进刚好，回复多一点也还能看清是谁接着谁说话。:fufu_3:',
+              createdAt: hoursAgo(0.5),
+              replyTo: { id: 990002, name: 'Viki' },
+              userAgent:
+                'Mozilla/5.0 (Android 15; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Mobile Safari/537.36',
+            },
+          ],
+        },
+        {
+          id: 990006,
+          name: ownerName || 'Site Owner',
+          avatar: '/avatar.png',
+          website: 'https://example.com',
+          content:
+            '这是一条博主自己的模拟留言，用来检查头像标识和「博主」徽章是否协调。\n:fufu_3:',
+          createdAt: hoursAgo(26),
+          isOwner: true,
+          userAgent:
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+          replies: [],
+        },
+        {
+          id: 990005,
+          name: 'Mika',
+          avatar:
+            'https://weavatar.com/avatar/a8f5f167f44f4964e6c998dee827110c?d=identicon&s=80',
+          website: 'https://example.com',
+          content:
+            '来试一下长一点的留言：支持 **Markdown**、`inline code`，也可以放一点换行。\n第二段应该保持舒服的行高，不要把卡片撑得太奇怪。',
+          createdAt: hoursAgo(50),
+          userAgent:
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Firefox/147.0',
+          replies: [
+            {
+              id: 990008,
+              name: ownerName || 'Site Owner',
+              avatar: '/avatar.png',
+              website: 'https://example.com',
+              content: '收到，这条主要用来看多段内容和代码样式。',
+              createdAt: hoursAgo(48),
+              replyTo: { id: 990005, name: 'Mika' },
+              isOwner: true,
+              userAgent:
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+            },
+          ],
+        },
+        {
+          id: 990004,
+          name: '小夏',
+          avatar:
+            'https://weavatar.com/avatar/45c48cce2e2d7fbdea1afc51c7c6ad26?d=identicon&s=80',
+          content:
+            '这个留言板比很多第三方评论系统清爽，像是站点自己长出来的部分。',
+          createdAt: hoursAgo(24 * 8 + 3),
+          userAgent:
+            'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+          replies: [],
+        },
+        {
+          id: 990001,
+          name: '匿名',
+          avatar: 'https://weavatar.com/avatar/?d=mp&s=80',
+          content: '没有启动 Vercel Functions 时，bun dev 会展示这些模拟数据。',
+          createdAt: hoursAgo(8),
+          userAgent:
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edg/147.0.0.0 Safari/537.36',
+          replies: [],
+        },
+      ]
+    }
+
+    function bindRenderedCommentActions() {
+      // 绑定回复按钮事件
+      commentsList.querySelectorAll('.reply-btn').forEach((btn) => {
+        btn.addEventListener(
+          'click',
+          (e) => {
+            const button = (e.target as HTMLElement).closest(
+              '.reply-btn',
+            ) as HTMLButtonElement
+            const article = button.closest('article')
+            if (article) {
+              handleReplyClick(article as HTMLElement, button)
+            }
+          },
+          { signal },
+        )
+      })
+
+      // 绑定展开/收起回复事件
+      commentsList.querySelectorAll('.toggle-replies-btn').forEach((btn) => {
+        btn.addEventListener(
+          'click',
+          (e) => {
+            const button = (e.target as HTMLElement).closest(
+              '.toggle-replies-btn',
+            ) as HTMLButtonElement
+            if (!button) return
+
+            const targetId = button.dataset.target
+            const isExpanded = button.dataset.expanded === 'true'
+            const container = commentsList.querySelector(
+              `.replies-container[data-parent-id="${targetId}"]`,
+            )
+
+            if (container) {
+              if (isExpanded) {
+                container.classList.add('hidden')
+                button.dataset.expanded = 'false'
+                const textEl = button.querySelector('.toggle-text')
+                const iconEl = button.querySelector('.toggle-icon')
+                if (textEl) {
+                  const count = container.querySelectorAll(
+                    '.comment-reply-item',
+                  ).length
+                  textEl.textContent = `展开回复 (${count})`
+                }
+                if (iconEl) iconEl.classList.remove('rotate-180')
+              } else {
+                container.classList.remove('hidden')
+                button.dataset.expanded = 'true'
+                const textEl = button.querySelector('.toggle-text')
+                const iconEl = button.querySelector('.toggle-icon')
+                if (textEl) {
+                  const count = container.querySelectorAll(
+                    '.comment-reply-item',
+                  ).length
+                  textEl.textContent = `收起回复 (${count})`
+                }
+                if (iconEl) iconEl.classList.add('rotate-180')
+              }
+            }
+          },
+          { signal },
+        )
+      })
+    }
+
+    function displayComments(comments: Comment[]) {
+      commentsLoading.classList.add('hidden')
+
+      if (comments.length === 0) {
+        commentsEmpty.classList.remove('hidden')
+        return
+      }
+
+      // 只统计顶层评论数量
+      const totalCount = comments.length
+
+      commentsList.innerHTML = comments
+        .map((c) => renderComment(c, false))
+        .join('')
+      commentsList.classList.remove('hidden')
+      countNumber.textContent = String(totalCount)
+      commentsCount.classList.remove('hidden')
+      bindRenderedCommentActions()
+    }
+
     // 加载评论
     async function loadComments() {
       try {
@@ -1466,36 +1779,23 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
 
         const response = await fetch(
           `/api/comments?slug=${encodeURIComponent(slug!)}`,
+          { signal },
         )
-        const data = await response.json().catch(() => null)
+
+        if (signal.aborted) return
 
         if (!response.ok) {
-          if (response.status === 404 || response.status === 405) {
-            showCommentsError(
-              '评论功能还没启用。按 README 接入对应 API 后，这里会自动生效。',
-              false,
-            )
-            return
-          }
-
-          if (
-            typeof data?.error === 'string' &&
-            data.error.toLowerCase().includes('configuration')
-          ) {
-            showCommentsError(
-              '评论 API 已部署，但环境变量还没配置完成。',
-              false,
-            )
-            return
-          }
-
-          throw new Error(
-            typeof data?.error === 'string'
-              ? data.error
-              : 'Failed to fetch comments',
-          )
+          throw new Error('Failed to fetch comments')
         }
+
+        const contentType = response.headers.get('content-type') || ''
+        if (!contentType.includes('application/json')) {
+          throw new Error('Comments API did not return JSON')
+        }
+
+        const data = await response.json()
         let comments: Comment[] = data.comments || []
+        if (signal.aborted) return
 
         // 合并本地待确认评论
         comments = mergeWithPendingComments(comments, slug!)
@@ -1507,87 +1807,26 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
           )
         })
 
-        commentsLoading.classList.add('hidden')
-
-        if (comments.length === 0) {
-          commentsEmpty.classList.remove('hidden')
-        } else {
-          // 只统计顶层评论数量
-          let totalCount = comments.length
-
-          commentsList.innerHTML = comments
-            .map((c) => renderComment(c, false))
-            .join('')
-          commentsList.classList.remove('hidden')
-          countNumber.textContent = String(totalCount)
-          commentsCount.classList.remove('hidden')
-
-          // 绑定回复按钮事件
-          commentsList.querySelectorAll('.reply-btn').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
-              const button = (e.target as HTMLElement).closest(
-                '.reply-btn',
-              ) as HTMLButtonElement
-              const article = button.closest('article')
-              if (article) {
-                handleReplyClick(article as HTMLElement, button)
-              }
-            })
-          })
-
-          // 绑定展开/收起回复事件
-          commentsList
-            .querySelectorAll('.toggle-replies-btn')
-            .forEach((btn) => {
-              btn.addEventListener('click', (e) => {
-                const button = (e.target as HTMLElement).closest(
-                  '.toggle-replies-btn',
-                ) as HTMLButtonElement
-                if (!button) return
-
-                const targetId = button.dataset.target
-                const isExpanded = button.dataset.expanded === 'true'
-                const container = commentsList.querySelector(
-                  `.replies-container[data-parent-id="${targetId}"]`,
-                )
-
-                if (container) {
-                  if (isExpanded) {
-                    container.classList.add('hidden')
-                    button.dataset.expanded = 'false'
-                    const textEl = button.querySelector('.toggle-text')
-                    const iconEl = button.querySelector('.toggle-icon')
-                    if (textEl) {
-                      const count = container.querySelectorAll(
-                        '.comment-reply-item',
-                      ).length
-                      textEl.textContent = `展开回复 (${count})`
-                    }
-                    if (iconEl) iconEl.classList.remove('rotate-180')
-                  } else {
-                    container.classList.remove('hidden')
-                    button.dataset.expanded = 'true'
-                    const textEl = button.querySelector('.toggle-text')
-                    const iconEl = button.querySelector('.toggle-icon')
-                    if (textEl) {
-                      const count = container.querySelectorAll(
-                        '.comment-reply-item',
-                      ).length
-                      textEl.textContent = `收起回复 (${count})`
-                    }
-                    if (iconEl) iconEl.classList.add('rotate-180')
-                  }
-                }
-              })
-            })
-        }
+        displayComments(comments)
       } catch (error) {
-        console.error('Load comments error:', error)
-        showCommentsError('加载评论时出错了，请稍后重试。')
+        if (signal.aborted) return
+
+        if (isLocalDevHost()) {
+          console.warn('Comments API is unavailable in local dev:', error)
+          const mockComments = mergeWithPendingComments(
+            getMockComments(slug || 'messages'),
+            slug!,
+          )
+          displayComments(mockComments)
+        } else {
+          console.error('Load comments error:', error)
+          commentsLoading.classList.add('hidden')
+          commentsError.classList.remove('hidden')
+        }
       }
     }
 
-    retryBtn?.addEventListener('click', loadComments)
+    retryBtn?.addEventListener('click', loadComments, { signal })
 
     // 处理回复按钮点击（提取为函数以便复用）
     function handleReplyClick(
@@ -1637,37 +1876,47 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       const textarea = container.querySelector('textarea')
 
       if (form) {
-        form.addEventListener('submit', (ev) => submitComment(ev, form))
+        form.addEventListener('submit', (ev) => submitComment(ev, form), {
+          signal,
+        })
       }
 
       if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-          container.innerHTML = ''
-          replyBtn.innerHTML = `回复 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>`
-        })
+        cancelBtn.addEventListener(
+          'click',
+          () => {
+            container.innerHTML = ''
+            replyBtn.innerHTML = `回复 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>`
+          },
+          { signal },
+        )
       }
 
       if (emojiBtnReply && textarea) {
-        emojiBtnReply.addEventListener('click', (ev) => {
-          ev.stopPropagation()
-          currentEmojiTarget = textarea as HTMLTextAreaElement
+        emojiBtnReply.addEventListener(
+          'click',
+          (ev) => {
+            ev.stopPropagation()
+            currentEmojiTarget = textarea as HTMLTextAreaElement
 
-          const emojiContainer = emojiBtnReply.parentElement
-          if (emojiContainer) {
-            if (!emojiContainer.contains(emojiPicker)) {
-              emojiContainer.appendChild(emojiPicker)
-              emojiPicker.classList.remove('hidden')
-            } else {
-              emojiPicker.classList.toggle('hidden')
+            const emojiContainer = emojiBtnReply.parentElement
+            if (emojiContainer) {
+              if (!emojiContainer.contains(emojiPicker)) {
+                emojiContainer.appendChild(emojiPicker)
+                emojiPicker.classList.remove('hidden')
+              } else {
+                emojiPicker.classList.toggle('hidden')
+              }
             }
-          }
-        })
+          },
+          { signal },
+        )
       }
     }
 
     // 保存待确认评论并立即显示
     function saveAndDisplayComment(
-      payload: any,
+      payload: CommentPayload,
       isReply: boolean,
       isVerifiedOwner: boolean = false,
     ) {
@@ -1730,8 +1979,9 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
                         <div class="flex items-center gap-3">
                           <div class="relative shrink-0">
                             <img alt="${tempComment.name}" referrerpolicy="no-referrer" loading="lazy" width="28" height="28"
-                              class="rounded-full object-cover h-7 w-7"
+                              class="comment-avatar rounded-full object-cover h-7 w-7"
                               src="${tempComment.avatar}" />
+                            ${getOwnerAvatarMark(tempComment.isOwner)}
                           </div>
                           <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2">
@@ -1750,7 +2000,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
                           </div>
                         </div>
                       </div>
-                      <div class="message-content prose prose-sm max-w-none line-clamp-3 dark:prose-invert">
+                      <div class="message-content prose prose-sm max-w-none dark:prose-invert">
                         ${parseMarkdown(tempComment.content, emojisConfig)}
                       </div>
                     </div>
@@ -1779,8 +2029,9 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
                           <div class="flex items-center gap-3">
                             <div class="relative shrink-0">
                               <img alt="${tempComment.name}" referrerpolicy="no-referrer" loading="lazy" width="28" height="28"
-                                class="rounded-full object-cover h-7 w-7"
+                                class="comment-avatar rounded-full object-cover h-7 w-7"
                                 src="${tempComment.avatar}" />
+                              ${getOwnerAvatarMark(tempComment.isOwner)}
                             </div>
                             <div class="min-w-0 flex-1">
                               <div class="flex items-center gap-2">
@@ -1799,7 +2050,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
                             </div>
                           </div>
                         </div>
-                        <div class="message-content prose prose-sm max-w-none line-clamp-3 dark:prose-invert">
+                        <div class="message-content prose prose-sm max-w-none dark:prose-invert">
                           ${parseMarkdown(tempComment.content, emojisConfig)}
                         </div>
                       </div>
@@ -1840,13 +2091,14 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
         } else {
           // 这是一个主评论，添加到评论列表顶部
           const tempCommentHtml = `
-            <article class="group rounded-lg border border-stone-200 p-4 transition dark:border-stone-700" data-id="${tempComment.id}" data-name="${tempComment.name}" data-temp="true">
+            <article class="comment-card group rounded-lg border p-4 transition" data-id="${tempComment.id}" data-name="${tempComment.name}" data-temp="true">
               <div class="mb-3">
                 <div class="flex items-center gap-3">
                   <div class="relative shrink-0">
                     <img alt="${tempComment.name}" referrerpolicy="no-referrer" loading="lazy" width="36" height="36"
-                      class="rounded-full object-cover h-9 w-9"
+                      class="comment-avatar rounded-full object-cover h-9 w-9"
                       src="${tempComment.avatar}" />
+                    ${getOwnerAvatarMark(tempComment.isOwner)}
                   </div>
                   <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2">
@@ -1946,7 +2198,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
         }
       }
 
-      const payload: any = {
+      const payload: CommentPayload = {
         slug,
         title,
         name,
@@ -2022,28 +2274,14 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
           body: JSON.stringify(payload),
         })
 
-        const data = await response.json().catch(() => null)
+        const data = await response.json()
 
         if (!response.ok) {
           // 如果是博主 token 验证失败，清除缓存的 token
           if (response.status === 403 && ownerToken) {
             localStorage.removeItem('owner_token')
           }
-
-          if (response.status === 404 || response.status === 405) {
-            throw new Error(
-              '评论 API 未启用，请先按 README 部署 /api/submit-comment',
-            )
-          }
-
-          if (
-            typeof data?.error === 'string' &&
-            data.error.toLowerCase().includes('configuration')
-          ) {
-            throw new Error('评论 API 已部署，但环境变量还没配置完成')
-          }
-
-          throw new Error(data?.error || '提交失败')
+          throw new Error(data.error || '提交失败')
         }
 
         // 如果是博主评论且验证成功，缓存 token
@@ -2051,7 +2289,32 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
           localStorage.setItem('owner_token', ownerToken)
         }
 
-        showToast('提交成功，等待半分钟后显示')
+        if (data.command) {
+          showToast(data.message || '管理操作已完成')
+
+          const contentInput = targetForm.querySelector(
+            'textarea',
+          ) as HTMLTextAreaElement
+          if (contentInput) contentInput.value = ''
+
+          if (isMainForm) {
+            charCount.textContent = '0'
+          } else {
+            targetForm.parentElement!.innerHTML = ''
+            const article = commentsList.querySelector(
+              `article[data-id="${payload.replyToId}"]`,
+            )
+            const replyBtn = article?.querySelector('.reply-btn')
+            if (replyBtn) {
+              replyBtn.innerHTML = `回复 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>`
+            }
+          }
+
+          await loadComments()
+          return
+        }
+
+        showToast(getSuccessMessage(!isMainForm))
 
         // 只重置内容，保留用户信息
         const contentInput = targetForm.querySelector(
@@ -2085,10 +2348,7 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
         saveAndDisplayComment(payload, !isMainForm, isVerifiedOwner)
       } catch (error) {
         console.error('Submit error:', error)
-        showToast(
-          error instanceof Error ? error.message : '提交失败，请重试',
-          'error',
-        )
+        showToast('提交失败，请重试', 'error')
       } finally {
         submitBtnCurrent.disabled = false
         if (submitTextCurrent)
@@ -2098,7 +2358,9 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
       }
     }
 
-    form?.addEventListener('submit', (e) => submitComment(e, form))
+    form?.addEventListener('submit', (e) => submitComment(e, form), {
+      signal,
+    })
 
     loadComments()
   }
@@ -2227,5 +2489,39 @@ const publicOwnerEmail = import.meta.env.PUBLIC_OWNER_EMAIL || ''
 
   .toggle-icon.rotate-180 {
     transform: rotate(180deg);
+  }
+
+  :global(.comments-section .comment-featured-mark) {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: inline-flex;
+    width: 1.35rem;
+    height: 1.35rem;
+    align-items: center;
+    justify-content: center;
+    color: color-mix(in srgb, var(--muted) 56%, transparent);
+    opacity: 0.78;
+  }
+
+  :global(.comments-section .comment-featured-mark svg) {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  :global(.comments-section .comment-owner-mark) {
+    position: absolute;
+    right: -0.125rem;
+    bottom: -0.125rem;
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    pointer-events: none;
+    border: 1px solid var(--paper);
+    border-radius: 9999px;
+    background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAAAY1BMVEUAAAD/zAD/zQD/xwD/zwD/ywD/zAD/ywD/zQD/zAD/zAD/zAD/zAD/zQD/ygD/ywD/zAD/zAD/////+d///O//5oD/1jD/0iD/31//8r//43D/4GD/3FD/2UD/7qv/6JD/9s/3vr4WAAAAEXRSTlMAv98gEEDQcKCAUO+Qj2CwrzmNzEwAAAGgSURBVEjHpdfRmoIgEIbhAUWU2mrQdG2zuv+r3DpoWZX5kafv/H2cSBEpXulsXWl+ptWpMSVtrmwUL1K22ERNkHNvtlAx7SAtFMNqMLzdcSJ9EGj5xRv6ituKN1VFRi80b0wXwKZ1ucAVZ1TNNV4rvGoHFrt0La+zm37w2Xvf86pdWLQa2o4jqbd10PqRY70fE3Hob//qzuDSBlt/ZXBpha0fWL50kbAtC5VPbLH1Nwk34tSTf3dhFucuOVbf/eGJ5blNwnoWc9Qk7ChjS0ds/V3GNSls/VXG1freHFr/v64NPeb3iyZg1515FuXYboAY254hPudYXixY32ZYjfbcK7asqJbxPfF/H8nKePShn+gz6WScsGyoFO0k2rCVKAlfghU3sUbCt8ReYonkuR/hho5WoK03YRXa9Cds2RDY9c/YakLvmxFadkTg0h20dXi5Rw5vQ7CJE5GN/c2dbHl2ENxzVvtPjlLLw6NOEnwEzLdBV9nHv+xV2wc775AcfWfBZ0KNrSoI5TSg5vNPI1xh1Uo2OR91pjkp/WK6qq0T5C94FL1DBHlUuAAAAABJRU5ErkJggg==')
+      center / contain no-repeat;
+    box-shadow: 0 0 0 1px
+      color-mix(in srgb, var(--line-strong) 42%, transparent);
   }
 </style>

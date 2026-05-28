@@ -24,29 +24,55 @@
 </div>
 
 <script>
+  interface LightboxWindow extends Window {
+    __astroDogeLightboxController?: AbortController
+  }
+
+  const lightboxWindow = window as LightboxWindow
+
   function initImageLightbox() {
     const overlay = document.getElementById(
       'lightbox-overlay',
     ) as HTMLDivElement | null
+    lightboxWindow.__astroDogeLightboxController?.abort()
+
     if (!overlay) return
+
+    const controller = new AbortController()
+    const { signal } = controller
+    lightboxWindow.__astroDogeLightboxController = controller
 
     const lightboxImg = overlay.querySelector('img') as HTMLImageElement
     const closeBtn = overlay.querySelector('.lightbox-close')
+    let closeTimer: ReturnType<typeof setTimeout> | null = null
 
     // 关闭灯箱函数
     function closeLightbox() {
       overlay!.classList.remove('active')
-      setTimeout(() => {
+      if (closeTimer) clearTimeout(closeTimer)
+      closeTimer = setTimeout(() => {
         overlay!.style.display = 'none'
       }, 300)
     }
 
+    signal.addEventListener(
+      'abort',
+      () => {
+        if (closeTimer) clearTimeout(closeTimer)
+      },
+      { once: true },
+    )
+
     // 点击 overlay 关闭
-    overlay.addEventListener('click', closeLightbox)
-    closeBtn?.addEventListener('click', (e) => {
-      e.stopPropagation()
-      closeLightbox()
-    })
+    overlay.addEventListener('click', closeLightbox, { signal })
+    closeBtn?.addEventListener(
+      'click',
+      (e) => {
+        e.stopPropagation()
+        closeLightbox()
+      },
+      { signal },
+    )
 
     // ESC 键关闭
     function handleEsc(e: KeyboardEvent) {
@@ -54,8 +80,7 @@
         closeLightbox()
       }
     }
-    document.removeEventListener('keydown', handleEsc)
-    document.addEventListener('keydown', handleEsc)
+    document.addEventListener('keydown', handleEsc, { signal })
 
     // 滚动时关闭
     function handleScroll() {
@@ -63,36 +88,37 @@
         closeLightbox()
       }
     }
-    window.removeEventListener('scroll', handleScroll)
-    window.addEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { signal })
+
+    // 统一绑定灯箱的辅助函数
+    function bindLightbox(img: HTMLImageElement) {
+      img.style.cursor = 'zoom-in'
+      img.addEventListener(
+        'click',
+        (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          lightboxImg.src = img.src
+          lightboxImg.alt = img.alt
+          overlay!.style.display = 'flex'
+          requestAnimationFrame(() => {
+            overlay!.classList.add('active')
+          })
+        },
+        { signal },
+      )
+    }
 
     // 为所有 article 中的图片添加点击事件
     const articles = document.querySelectorAll('article')
     articles.forEach((article) => {
-      const images = article.querySelectorAll('img')
-      images.forEach((img) => {
-        // 检查是否已经绑定过事件
-        if (img.dataset.lightboxBound === 'true') return
-        img.dataset.lightboxBound = 'true'
-
-        // 设置鼠标样式
-        img.style.cursor = 'zoom-in'
-
-        img.addEventListener('click', (e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          const src = img.src
-          const alt = img.alt
-          lightboxImg.src = src
-          lightboxImg.alt = alt
-          overlay.style.display = 'flex'
-          // 触发动画
-          requestAnimationFrame(() => {
-            overlay.classList.add('active')
-          })
-        })
-      })
+      article.querySelectorAll('img').forEach(bindLightbox)
     })
+
+    // 封面图
+    document
+      .querySelectorAll<HTMLImageElement>('.post-cover img')
+      .forEach(bindLightbox)
   }
 
   // 页面加载时初始化

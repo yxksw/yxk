@@ -6,7 +6,7 @@
   <button
     id="theme-toggle"
     aria-label="切换主题"
-    class="group flex h-7 w-7 items-center justify-center rounded-md text-stone-500 transition-colors duration-200 hover:bg-stone-100 hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-200"
+    class="group flex h-8 w-8 items-center justify-center rounded-md border border-stone-200/65 bg-white/65 text-stone-500 transition-colors duration-200 hover:bg-stone-100 hover:text-stone-800 dark:border-stone-800 dark:bg-stone-900/70 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100"
   >
     <!-- 太阳图标 -->
     <svg
@@ -53,14 +53,24 @@
   <!-- 主题提示弹窗 -->
   <div
     id="theme-toast"
-    class="pointer-events-none absolute top-10 right-0 z-50 flex items-center gap-1.5 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-sm font-medium whitespace-nowrap text-stone-700 opacity-0 shadow-lg transition-all duration-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
+    class="pointer-events-none absolute top-10 right-0 z-50 flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-sm font-medium whitespace-nowrap text-stone-700 opacity-0 shadow-lg transition-all duration-300 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
   >
     <span id="theme-toast-text">Auto</span>
   </div>
 </div>
 
 <script>
+  interface ThemeWindow extends Window {
+    __astroDogeThemeController?: AbortController
+    __astroDogeThemeObserver?: MutationObserver
+  }
+
+  const themeWindow = window as ThemeWindow
+
   function initThemeToggle() {
+    themeWindow.__astroDogeThemeController?.abort()
+    themeWindow.__astroDogeThemeObserver?.disconnect()
+
     const themeToggle = document.getElementById('theme-toggle')
     const sunIcon = document.getElementById('sun-icon')
     const moonIcon = document.getElementById('moon-icon')
@@ -69,6 +79,9 @@
 
     if (!themeToggle) return
 
+    const controller = new AbortController()
+    themeWindow.__astroDogeThemeController = controller
+    const { signal } = controller
     let toastTimeout: ReturnType<typeof setTimeout> | null = null
 
     // 显示提示弹窗
@@ -99,6 +112,14 @@
       }, 600)
     }
 
+    signal.addEventListener(
+      'abort',
+      () => {
+        if (toastTimeout) clearTimeout(toastTimeout)
+      },
+      { once: true },
+    )
+
     // 更新图标显示 - 根据实际显示的主题（亮/暗）来决定图标
     function updateIcon() {
       const isDark = document.documentElement.classList.contains('dark')
@@ -115,23 +136,27 @@
     }
 
     // 点击切换主题：system -> light -> dark -> system
-    themeToggle.addEventListener('click', () => {
-      const currentTheme = localStorage.getItem('theme') || 'system'
-      let nextTheme: string
+    themeToggle.addEventListener(
+      'click',
+      () => {
+        const currentTheme = localStorage.getItem('theme') || 'system'
+        let nextTheme: string
 
-      if (currentTheme === 'system') {
-        nextTheme = 'light'
-      } else if (currentTheme === 'light') {
-        nextTheme = 'dark'
-      } else {
-        nextTheme = 'system'
-      }
+        if (currentTheme === 'system') {
+          nextTheme = 'light'
+        } else if (currentTheme === 'light') {
+          nextTheme = 'dark'
+        } else {
+          nextTheme = 'system'
+        }
 
-      localStorage.setItem('theme', nextTheme)
-      applyTheme(nextTheme)
-      updateIcon()
-      showToast(nextTheme)
-    })
+        localStorage.setItem('theme', nextTheme)
+        applyTheme(nextTheme)
+        updateIcon()
+        showToast(nextTheme)
+      },
+      { signal },
+    )
 
     // 初始化图标
     updateIcon()
@@ -144,6 +169,26 @@
       attributes: true,
       attributeFilter: ['class'],
     })
+    themeWindow.__astroDogeThemeObserver = observer
+
+    signal.addEventListener(
+      'abort',
+      () => {
+        observer.disconnect()
+      },
+      { once: true },
+    )
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener(
+      'change',
+      () => {
+        const theme = localStorage.getItem('theme') || 'system'
+        if (theme === 'system') {
+          applyTheme('system')
+        }
+      },
+      { signal },
+    )
   }
 
   function applyTheme(theme: string) {
@@ -161,14 +206,12 @@
     )
     document.head.appendChild(css)
 
-    let isDark = false
-    if (theme === 'dark') {
-      isDark = true
-    } else if (theme === 'light') {
-      isDark = false
-    } else {
-      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    }
+    const isDark =
+      theme === 'dark'
+        ? true
+        : theme === 'light'
+          ? false
+          : window.matchMedia('(prefers-color-scheme: dark)').matches
 
     if (isDark) {
       document.documentElement.classList.add('dark')
@@ -176,19 +219,9 @@
       document.documentElement.classList.remove('dark')
     }
 
-    window.getComputedStyle(css).opacity
+    void window.getComputedStyle(css).opacity
     document.head.removeChild(css)
   }
-
-  // 监听系统主题变化
-  window
-    .matchMedia('(prefers-color-scheme: dark)')
-    .addEventListener('change', () => {
-      const theme = localStorage.getItem('theme') || 'system'
-      if (theme === 'system') {
-        applyTheme('system')
-      }
-    })
 
   document.addEventListener('DOMContentLoaded', initThemeToggle)
   document.addEventListener('astro:after-swap', initThemeToggle)

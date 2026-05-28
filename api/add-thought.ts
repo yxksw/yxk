@@ -136,10 +136,7 @@ function getApiDocs() {
   }
 }
 
-export default async function handler(
-	req: VercelRequest,
-	res: VercelResponse,
-) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(req, res, 'GET, POST, OPTIONS', 'Content-Type, Authorization')
 
   if (req.method === 'OPTIONS') {
